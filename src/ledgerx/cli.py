@@ -10,6 +10,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from ledgerx.core import CashEvent, FillEvent, Ledger, LedgerError
+from ledgerx.valuation import load_quotes, mark_to_market
 
 
 def demo() -> Ledger:
@@ -53,8 +54,22 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument(
         "--expected-head", help="Check against a previously saved SHA-256 head checkpoint"
     )
+    mark = commands.add_parser("mark", help="Value a verified journal using separate USD quotes")
+    mark.add_argument("journal", type=Path)
+    mark.add_argument("--quotes", type=Path, required=True)
+    mark.add_argument("--as-of", type=datetime.fromisoformat, required=True)
+    mark.add_argument("--max-age-seconds", type=int, default=86_400)
+    mark.add_argument("--expected-head", help="Check a separately saved journal head")
     args = parser.parse_args(argv)
     try:
+        if args.command == "mark":
+            ledger = Ledger.load(args.journal, expected_head=args.expected_head)
+            quotes, digest = load_quotes(args.quotes)
+            report = mark_to_market(
+                ledger, quotes, args.as_of, max_age_seconds=args.max_age_seconds
+            )
+            print(json.dumps({**report, "quotes_sha256": digest}, indent=2))
+            return 0
         ledger = (
             demo()
             if args.command == "demo"

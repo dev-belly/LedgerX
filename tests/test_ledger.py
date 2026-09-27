@@ -3,11 +3,21 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, localcontext
+from pathlib import Path
 from random import Random
 
 import pytest
 
-from ledgerx import CashEvent, FillEvent, IntegrityError, Ledger, LedgerError
+from ledgerx import (
+    CashEvent,
+    FillEvent,
+    IntegrityError,
+    Ledger,
+    LedgerError,
+    PriceQuote,
+    load_quotes,
+    mark_to_market,
+)
 from ledgerx.cli import main
 
 T0 = datetime(2024, 1, 2, tzinfo=UTC)
@@ -255,3 +265,103 @@ def test_empty_journal_round_trip(tmp_path) -> None:
     journal = tmp_path / "empty.jsonl"
     Ledger().save(journal)
     assert Ledger.load(journal).summary()["events"] == 0
+
+
+def test_available_quote_marks_reconcile_without_changing_journal() -> None:
+    ledger = funded()
+    ledger.append(fill("buy", "buy", "10", "100", "1"))
+    ledger.append(fill("sell", "sell", "4", "110", "1", days=2))
+    as_of = datetime(2024, 1, 4, 17, tzinfo=UTC)
+    quotes, digest = load_quotes(Path("examples/demo_quotes.csv"))
+    before = ledger.summary()
+    result = mark_to_market(ledger, quotes, as_of)
+    assert len(digest) == 64
+    assert result["positions"]["ACME"]["price"] == "105"
+    assert result["positions"]["ACME"]["observed_at"] == "2024-01-04T16:00:00Z"
+    assert (result["inventory_cost"], result["market_value"]) == ("600.6", "630")
+    assert (result["realized_pnl"], result["unrealized_pnl"]) == ("38.6", "29.4")
+    assert result["marked_equity"] == "10068"
+    assert before == ledger.summary() and result["journal_head"] == ledger.head_hash
+
+
+def test_every_open_position_requires_a_mark_and_portfolio_values_sum() -> None:
+    ledger = funded()
+    ledger.append(fill("buy-a", "buy", "10", "100", "1"))
+    ledger.append(
+        FillEvent("buy-b", T0 + timedelta(days=1), "BETA", "buy", Decimal("5"), Decimal("20"))
+    )
+    as_of = T0 + timedelta(days=1, hours=12)
+    a = PriceQuote("ACME", as_of, as_of, Decimal("105"))
+    b = PriceQuote("BETA", as_of, as_of, Decimal("18"))
+    with pytest.raises(LedgerError, match="BETA"):
+        mark_to_market(ledger, [a], as_of)
+    result = mark_to_market(ledger, [b, a], as_of)
+    assert result["inventory_cost"] == "1101"
+    assert result["market_value"] == "1140"
+    assert result["unrealized_pnl"] == "39"
+    assert result["marked_equity"] == "10039"
+
+
+def test_mark_uses_latest_observed_available_revision_and_requires_freshness() -> None:
+    ledger = funded()
+    ledger.append(fill("buy", "buy", "1", "100"))
+    observed = T0 + timedelta(days=1, hours=10)
+    quotes = [
+        PriceQuote("ACME", observed, observed + timedelta(minutes=1), Decimal("105")),
+        PriceQuote("ACME", observed, observed + timedelta(minutes=30), Decimal("106")),
+        PriceQuote(
+            "ACME", observed + timedelta(minutes=15), observed + timedelta(hours=2), Decimal("900")
+        ),
+        PriceQuote(
+            "ACME", observed + timedelta(hours=3), observed + timedelta(hours=3), Decimal("200")
+        ),
+    ]
+    assert mark_to_market(ledger, quotes, observed + timedelta(minutes=20))["market_value"] == "105"
+    assert mark_to_market(ledger, quotes, observed + timedelta(minutes=40))["market_value"] == "106"
+    with pytest.raises(LedgerError, match="Stale quote"):
+        mark_to_market(ledger, quotes, observed + timedelta(days=2))
+    with pytest.raises(LedgerError, match="No available quote"):
+        mark_to_market(ledger, quotes, observed - timedelta(minutes=1))
+    with pytest.raises(LedgerError, match="Duplicate quote revision"):
+        mark_to_market(ledger, [quotes[0], quotes[0]], observed + timedelta(minutes=20))
+
+
+def test_mark_rejects_future_journal_and_bad_quote_contract(tmp_path) -> None:
+    ledger = funded()
+    ledger.append(fill("buy", "buy", "1", "100"))
+    with pytest.raises(LedgerError, match="after valuation cutoff"):
+        mark_to_market(ledger, [], T0)
+    with pytest.raises(LedgerError, match="timezone-aware"):
+        mark_to_market(ledger, [], datetime(2024, 1, 4))
+    with pytest.raises(LedgerError, match="max_age_seconds"):
+        mark_to_market(ledger, [], T0 + timedelta(days=2), max_age_seconds=0)
+    with pytest.raises(LedgerError, match="before observation"):
+        PriceQuote("ACME", T0 + timedelta(days=1), T0, Decimal("100"))
+    with pytest.raises(LedgerError, match="float/bool"):
+        PriceQuote("ACME", T0, T0, 100.0)
+    quotes_path = tmp_path / "quotes.csv"
+    quotes_path.write_text("symbol,symbol,observed_at,available_at,price\n")
+    with pytest.raises(LedgerError, match="headers"):
+        load_quotes(quotes_path)
+
+
+def test_cli_mark_matches_published_example_and_checks_head(tmp_path, capsys) -> None:
+    journal = tmp_path / "demo.jsonl"
+    assert main(["demo", "--out", str(journal)]) == 0
+    head = json.loads(capsys.readouterr().out)["head_hash"]
+    command = [
+        "mark",
+        str(journal),
+        "--quotes",
+        "examples/demo_quotes.csv",
+        "--as-of",
+        "2024-01-04T17:00:00Z",
+        "--expected-head",
+        head,
+    ]
+    assert main(command) == 0
+    actual = json.loads(capsys.readouterr().out)
+    expected = json.loads(Path("examples/valuation.json").read_text())
+    assert actual == expected
+    assert main(command[:-1] + ["0" * 64]) == 2
+    assert "expected checkpoint" in capsys.readouterr().err

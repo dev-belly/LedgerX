@@ -1,0 +1,26 @@
+{
+  "as_of": "2024-01-04T17:00:00Z",
+  "max_age_seconds": 86400,
+  "basis": "available observed quote, mid-price estimate without liquidation costs",
+  "journal_head": "71cd9531b38e5bf9db26e63fe6dfb39f1593a27c1c03f9c42a0d46cb1c823cf9",
+  "events": 3,
+  "cash": "9438",
+  "inventory_cost": "600.6",
+  "market_value": "630",
+  "net_contributions": "10000",
+  "realized_pnl": "38.6",
+  "unrealized_pnl": "29.4",
+  "marked_equity": "10068",
+  "positions": {
+    "ACME": {
+      "quantity": "6",
+      "cost_basis": "600.6",
+      "market_value": "630",
+      "unrealized_pnl": "29.4",
+      "price": "105",
+      "observed_at": "2024-01-04T16:00:00Z",
+      "available_at": "2024-01-04T16:01:00Z"
+    }
+  },
+  "quotes_sha256": "3997adb09adb4efb8dbae4979beecae1b8a91fbf350eecfd1dd78aa168175d84"
+}

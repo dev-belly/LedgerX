@@ -6,7 +6,8 @@ and verifies that a stored JSONL journal has not changed accidentally.
 
 This project sits after an execution simulator such as TradeForge: it consumes
 actual fill facts, not target weights or forecasts. The core uses only Python's
-standard library and `Decimal`; there are no market data calls or invented P&L.
+standard library and `Decimal`; there are no market data calls. An optional,
+separate price snapshot can estimate unrealized P&L without changing the ledger.
 
 ## Run it
 
@@ -34,6 +35,47 @@ ledgerx verify demo.jsonl --expected-head <previously-recorded-head-hash>
 
 The demo output is synthetic; the checkpoint must come from a prior trusted
 run, not from the same file being verified.
+
+## Point-in-time portfolio marks
+
+The accounting journal records **historical cost and realized P&L**. To value
+open positions, pass independent USD quotes with both an observation timestamp
+and the time they became available:
+
+```bash
+ledgerx demo --out demo.jsonl
+ledgerx mark demo.jsonl --quotes examples/demo_quotes.csv --as-of 2024-01-04T17:00:00Z
+```
+
+The [published quote input](examples/demo_quotes.csv) deliberately includes a
+price observed before 17:00 but published at 18:00, and another observed at
+18:00. Neither is eligible at the cutoff. The [reproducible output](examples/valuation.json)
+uses the available **105 USD** quote: six ACME shares have a market value of
+**630 USD** and historical cost **600.60 USD**. Unrealized P&L is **29.40 USD**;
+cash **9,438 USD** plus the marked holding is **10,068 USD**, reconciling to
+10,000 USD net contributions + 38.60 USD realized P&L + 29.40 USD unrealized
+P&L. No quote is inferred from a trade fill.
+
+Quotes must be finite, positive decimal prices for uppercase symbols, in the
+exact CSV schema `symbol,observed_at,available_at,price`. Timestamps need UTC
+offsets. The latest observed quote available by `--as-of` is used; revisions
+of one observation use the latest available version. Missing or older than
+`--max-age-seconds` (default 86,400) fails rather than silently using cost or a
+future price. A full journal with an event after the cutoff is rejected; use a
+verified journal prefix for an earlier valuation. The output includes selected
+quote timestamps, the journal head and SHA-256 of the quote CSV bytes. Use
+`--expected-head` with a separately saved checkpoint to detect journal
+truncation. The quote hash proves which file was read, not whether its prices
+are genuine.
+
+This is a **mid-price research estimate**, without a sale spread, fees,
+liquidity constraints, FX or a claim about obtainable liquidation proceeds.
+The price file is separate from immutable journal events; generating a mark
+never posts an accounting transaction. The design follows the distinction
+between cost and external market prices in [hledger](https://hledger.org/investments.html)
+and [Beancount](https://beancount.github.io/docs/running_beancount_and_generating_reports/);
+[LEAN](https://www.quantconnect.com/docs/v2/writing-algorithms/portfolio/holdings)
+also distinguishes holdings cost from value at a price.
 
 ## Python API
 
@@ -81,7 +123,8 @@ than trusting stored balances.
 
 - USD, long-only and settled cash; no shorting, margin, FX or corporate actions.
 - `book_equity` is cash plus **historical cost**, not market value. There is no
-  unrealized P&L without independently supplied, point-in-time marks.
+  unrealized P&L without independently supplied, point-in-time marks. The
+  optional `mark` report does not revalue journal accounts.
 - The hash chain detects edits to existing rows. A truncated prefix remains a
   valid chain unless an independent head checkpoint is supplied. Someone able
   to replace the entire file and checkpoint can forge both; use signed storage
