@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from random import Random
 
 import pytest
@@ -102,6 +102,31 @@ def test_money_quantum_and_half_even_fill_rounding() -> None:
     assert ledger.positions["ACME"].cost_basis == Decimal("0.00000002")
 
 
+def test_large_position_retains_small_fractional_fill_exactly() -> None:
+    ledger = Ledger()
+    ledger.append(cash("fund", "deposit", "1000000000"))
+    ledger.append(fill("large", "buy", "10000000000000000", "0.00000001"))
+    ledger.append(fill("small", "buy", "0.000000000001", "10000000000000000"))
+    assert ledger.positions["ACME"].quantity == Decimal("10000000000000000.000000000001")
+    assert ledger.positions["ACME"].cost_basis == Decimal("100010000")
+    assert ledger.summary()["events"] == 3
+
+
+def test_accounting_is_independent_of_callers_decimal_precision() -> None:
+    ledger = funded()
+    ledger.append(fill("buy", "buy", "1.00000001", "123.45678901"))
+    expected = ledger.summary()
+    with localcontext() as context:
+        context.prec = 6
+        assert ledger.summary() == expected
+        assert ledger.positions["ACME"].cost_basis == Decimal(expected["inventory_cost"])
+
+
+def test_fill_precision_limit_is_explicit() -> None:
+    with pytest.raises(LedgerError, match="at most 24 decimal places"):
+        fill("too-fine", "buy", "1.0000000000000000000000001", "1")
+
+
 def test_rejected_events_leave_ledger_unchanged() -> None:
     ledger = funded()
     before = ledger.summary()
@@ -111,6 +136,16 @@ def test_rejected_events_leave_ledger_unchanged() -> None:
         ledger.append(fill("sell", "sell", "1", "100"))
     with pytest.raises(LedgerError, match="Insufficient cash"):
         ledger.append(cash("withdraw", "withdrawal", "10001", days=1))
+    assert ledger.summary() == before
+
+
+def test_sell_fee_cannot_overdraw_settled_cash() -> None:
+    ledger = Ledger()
+    ledger.append(cash("fund", "deposit", "10"))
+    ledger.append(fill("buy", "buy", "1", "10"))
+    before = ledger.summary()
+    with pytest.raises(LedgerError, match="Insufficient cash to cover sell fee"):
+        ledger.append(fill("sell", "sell", "1", "1", fee="2", days=2))
     assert ledger.summary() == before
 
 
@@ -150,6 +185,37 @@ def test_round_trip_and_hash_chain_are_deterministic(tmp_path) -> None:
     assert ledger.records[1].previous_hash == ledger.records[0].hash
 
 
+def test_independent_checkpoint_detects_truncated_journal(tmp_path) -> None:
+    ledger = funded()
+    ledger.append(fill("buy", "buy", "10", "100"))
+    journal = tmp_path / "journal.jsonl"
+    ledger.save(journal)
+    original_head = ledger.head_hash
+    journal.write_text(journal.read_text().splitlines(keepends=True)[0])
+    assert Ledger.load(journal).summary()["events"] == 1
+    with pytest.raises(IntegrityError, match="expected checkpoint"):
+        Ledger.load(journal, expected_head=original_head)
+    with pytest.raises(IntegrityError, match="64 lowercase hex"):
+        Ledger.load(journal, expected_head="bad")
+
+
+@pytest.mark.parametrize("replacement", ['"sequence": true', '"sequence": 1.0'])
+def test_replay_rejects_sequence_with_wrong_json_type(tmp_path, replacement: str) -> None:
+    journal = tmp_path / "journal.jsonl"
+    funded().save(journal)
+    journal.write_text(journal.read_text().replace('"sequence":1', replacement))
+    with pytest.raises(IntegrityError, match="row"):
+        Ledger.load(journal)
+
+
+def test_replay_rejects_duplicate_json_keys(tmp_path) -> None:
+    journal = tmp_path / "journal.jsonl"
+    funded().save(journal)
+    journal.write_text(journal.read_text().replace('"sequence":1', '"sequence":1,"sequence":1'))
+    with pytest.raises(IntegrityError, match="Duplicate JSON key"):
+        Ledger.load(journal)
+
+
 @pytest.mark.parametrize("tamper", ["amount", "entry", "hash", "reorder", "duplicate"])
 def test_tampered_journal_is_rejected(tmp_path, tamper: str) -> None:
     ledger = funded()
@@ -179,6 +245,10 @@ def test_cli_demo_and_verify(tmp_path, capsys) -> None:
     assert demo_summary["realized_pnl"] == "38.6"
     assert main(["verify", str(journal)]) == 0
     assert json.loads(capsys.readouterr().out) == demo_summary
+    assert main(["verify", str(journal), "--expected-head", demo_summary["head_hash"]]) == 0
+    capsys.readouterr()
+    assert main(["verify", str(journal), "--expected-head", "0" * 64]) == 2
+    assert "expected checkpoint" in capsys.readouterr().err
 
 
 def test_empty_journal_round_trip(tmp_path) -> None:

@@ -25,6 +25,16 @@ remaining cost basis 600.6, and realized P&L 38.6. The JSONL file has one
 balanced entry set and chained SHA-256 digest per event; `verify` replays and
 checks every row, including sequence and previous hash.
 
+For protection against truncation or replacement of the entire journal, save
+the printed `head_hash` somewhere independent of the JSONL file and check it:
+
+```bash
+ledgerx verify demo.jsonl --expected-head <previously-recorded-head-hash>
+```
+
+The demo output is synthetic; the checkpoint must come from a prior trusted
+run, not from the same file being verified.
+
 ## Python API
 
 ```python
@@ -43,7 +53,7 @@ print(Ledger.load("fills.jsonl").summary())
 
 The caller assigns unique event IDs and timezone-aware timestamps. Posting
 order must be nondecreasing by timestamp. A duplicate ID, oversell, unfunded
-buy or withdrawal fails before mutating the ledger. USD cost basis includes
+buy, withdrawal or sell fee fails before mutating the ledger. USD cost basis includes
 buy fees; sale proceeds subtract sell fees. For partial sales, cost basis is
 released at average acquisition cost. On a full close, the remaining cost is
 released exactly.
@@ -51,7 +61,9 @@ released exactly.
 Cash, fees and account balances use integer units of `0.00000001` USD. Cash
 and fee inputs must be exact multiples of that unit. Fill notionals and partial
 cost release round to the nearest unit, ties to even. This keeps the balance
-identity exact across long histories of fractional fills.
+identity exact across long histories of fractional fills. Quantity and price
+accept at most 24 decimal places; position quantity arithmetic retains those
+places even for large existing positions.
 
 | Account | Deposit | Buy | Sell |
 | --- | ---: | ---: | ---: |
@@ -70,9 +82,10 @@ than trusting stored balances.
 - USD, long-only and settled cash; no shorting, margin, FX or corporate actions.
 - `book_equity` is cash plus **historical cost**, not market value. There is no
   unrealized P&L without independently supplied, point-in-time marks.
-- The hash chain detects accidental or naive edits. Someone able to replace the
-  entire file and recompute hashes can forge it; use signed storage or an
-  external checkpoint when adversarial tampering matters.
+- The hash chain detects edits to existing rows. A truncated prefix remains a
+  valid chain unless an independent head checkpoint is supplied. Someone able
+  to replace the entire file and checkpoint can forge both; use signed storage
+  when adversarial tampering matters.
 - `save` atomically replaces a snapshot. It is a local research journal, not a
   concurrent transaction service or production accounting system.
 

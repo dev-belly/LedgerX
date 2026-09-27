@@ -50,9 +50,16 @@ def main(argv: list[str] | None = None) -> int:
     make_demo.add_argument("--out", type=Path, help="Write an auditable JSONL journal")
     verify = commands.add_parser("verify", help="Verify and replay a JSONL journal")
     verify.add_argument("journal", type=Path)
+    verify.add_argument(
+        "--expected-head", help="Check against a previously saved SHA-256 head checkpoint"
+    )
     args = parser.parse_args(argv)
     try:
-        ledger = demo() if args.command == "demo" else Ledger.load(args.journal)
+        ledger = (
+            demo()
+            if args.command == "demo"
+            else Ledger.load(args.journal, expected_head=args.expected_head)
+        )
         if args.command == "demo" and args.out is not None:
             ledger.save(args.out)
         print(json.dumps(ledger.summary(), indent=2))
