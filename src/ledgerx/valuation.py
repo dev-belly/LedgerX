@@ -11,7 +11,7 @@ import hashlib
 import io
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal, localcontext
+from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path
 from typing import Any
 
@@ -85,7 +85,7 @@ def load_quotes(path: str | Path) -> tuple[list[PriceQuote], str]:
                         Decimal(row["price"]),
                     )
                 )
-            except (ValueError, TypeError) as exc:
+            except (ValueError, TypeError, InvalidOperation) as exc:
                 raise LedgerError(f"Invalid quote CSV row {line_no}: {exc}") from exc
     except UnicodeDecodeError as exc:
         raise LedgerError("Quote CSV must be UTF-8") from exc

@@ -267,6 +267,15 @@ def test_empty_journal_round_trip(tmp_path) -> None:
     assert Ledger.load(journal).summary()["events"] == 0
 
 
+def test_invalid_utf8_journal_is_reported_as_integrity_error(tmp_path, capsys) -> None:
+    journal = tmp_path / "invalid.jsonl"
+    journal.write_bytes(b"\xff\n")
+    with pytest.raises(IntegrityError, match="UTF-8"):
+        Ledger.load(journal)
+    assert main(["verify", str(journal)]) == 2
+    assert "UTF-8" in capsys.readouterr().err
+
+
 def test_available_quote_marks_reconcile_without_changing_journal() -> None:
     ledger = funded()
     ledger.append(fill("buy", "buy", "10", "100", "1"))
@@ -343,6 +352,34 @@ def test_mark_rejects_future_journal_and_bad_quote_contract(tmp_path) -> None:
     quotes_path.write_text("symbol,symbol,observed_at,available_at,price\n")
     with pytest.raises(LedgerError, match="headers"):
         load_quotes(quotes_path)
+
+
+def test_invalid_quote_price_is_reported_with_row_number(tmp_path, capsys) -> None:
+    quotes_path = tmp_path / "quotes.csv"
+    quotes_path.write_text(
+        "symbol,observed_at,available_at,price\n"
+        "ACME,2024-01-04T16:00:00Z,2024-01-04T16:01:00Z,not-a-price\n"
+    )
+    with pytest.raises(LedgerError, match="Invalid quote CSV row 2"):
+        load_quotes(quotes_path)
+    journal = tmp_path / "journal.jsonl"
+    demo = funded()
+    demo.append(fill("buy", "buy", "1", "100"))
+    demo.save(journal)
+    assert (
+        main(
+            [
+                "mark",
+                str(journal),
+                "--quotes",
+                str(quotes_path),
+                "--as-of",
+                "2024-01-04T17:00:00Z",
+            ]
+        )
+        == 2
+    )
+    assert "Invalid quote CSV row 2" in capsys.readouterr().err
 
 
 def test_cli_mark_matches_published_example_and_checks_head(tmp_path, capsys) -> None:

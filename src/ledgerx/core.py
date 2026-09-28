@@ -399,7 +399,11 @@ class Ledger:
         if expected_head is not None and not re.fullmatch(r"[0-9a-f]{64}", expected_head):
             raise IntegrityError("Expected head hash must be 64 lowercase hex characters")
         ledger = cls()
-        for line_no, line in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), 1):
+        try:
+            lines = Path(path).read_text(encoding="utf-8").splitlines()
+        except UnicodeDecodeError as exc:
+            raise IntegrityError("Journal must be UTF-8") from exc
+        for line_no, line in enumerate(lines, 1):
             try:
                 row = json.loads(line, object_pairs_hook=_unique_object)
                 event = _event_from_dict(row["event"])
