@@ -14,7 +14,15 @@ import re
 import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation, localcontext
+from decimal import (
+    ROUND_HALF_EVEN,
+    Context,
+    Decimal,
+    DivisionByZero,
+    InvalidOperation,
+    Overflow,
+    localcontext,
+)
 from pathlib import Path
 from typing import Any, Literal, TypeAlias
 
@@ -23,6 +31,13 @@ MONEY_QUANTUM = Decimal("0.00000001")  # one hundred-millionth of USD
 MAX_MONEY_UNITS = 10**24
 MAX_FILL_DECIMAL_PLACES = 24
 DECIMAL_PRECISION = 128
+_DECIMAL_CONTEXT = Context(
+    prec=DECIMAL_PRECISION,
+    rounding=ROUND_HALF_EVEN,
+    Emin=-999999,
+    Emax=999999,
+    traps=[InvalidOperation, DivisionByZero, Overflow],
+)
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 _SYMBOL = re.compile(r"[A-Z0-9][A-Z0-9._-]{0,31}\Z")
 
@@ -51,21 +66,21 @@ def _decimal(value: Decimal | str | int, label: str, *, positive: bool = True) -
 
 
 def _units(value: Decimal, label: str, *, exact: bool = False) -> int:
-    with localcontext() as context:
-        context.prec = DECIMAL_PRECISION
+    with localcontext(_DECIMAL_CONTEXT):
         scaled = value / MONEY_QUANTUM
         rounded = scaled.to_integral_value(rounding=ROUND_HALF_EVEN)
-    if exact and scaled != rounded:
-        raise LedgerError(f"{label} must be a multiple of {MONEY_QUANTUM}")
     units = int(rounded)
+    # Compare with the original amount: rounding the intermediate scaled value
+    # can hide subquantum digits beyond the working arithmetic precision.
+    if exact and value != _money(units):
+        raise LedgerError(f"{label} must be a multiple of {MONEY_QUANTUM}")
     if abs(units) > MAX_MONEY_UNITS:
         raise LedgerError(f"{label} exceeds the supported range")
     return units
 
 
 def _money(units: int) -> Decimal:
-    with localcontext() as context:
-        context.prec = DECIMAL_PRECISION
+    with localcontext(_DECIMAL_CONTEXT):
         return Decimal(units).scaleb(-8)
 
 
@@ -300,8 +315,7 @@ class Ledger:
             signed = amount if event.direction == "deposit" else -amount
             return (Entry("cash", signed), Entry("external_equity", -signed))
 
-        with localcontext() as context:
-            context.prec = DECIMAL_PRECISION
+        with localcontext(_DECIMAL_CONTEXT):
             gross = event.quantity * event.price
         gross_units = _units(gross, "gross fill amount")
         if gross_units == 0:
@@ -313,8 +327,7 @@ class Ledger:
             if self._balances.get("cash", 0) < paid:
                 raise LedgerError("Insufficient cash for buy")
             old = positions.get(event.symbol, _PositionUnits(Decimal("0"), 0))
-            with localcontext() as context:
-                context.prec = DECIMAL_PRECISION
+            with localcontext(_DECIMAL_CONTEXT):
                 quantity = old.quantity + event.quantity
             positions[event.symbol] = _PositionUnits(quantity, old.cost_units + paid)
             return (Entry("cash", -paid), Entry(account, paid))
@@ -325,12 +338,10 @@ class Ledger:
         if old.quantity == event.quantity:
             released = old.cost_units
         else:
-            with localcontext() as context:
-                context.prec = DECIMAL_PRECISION
+            with localcontext(_DECIMAL_CONTEXT):
                 fraction = Decimal(old.cost_units) * event.quantity / old.quantity
                 released = int(fraction.to_integral_value(rounding=ROUND_HALF_EVEN))
-        with localcontext() as context:
-            context.prec = DECIMAL_PRECISION
+        with localcontext(_DECIMAL_CONTEXT):
             remaining = old.quantity - event.quantity
         if remaining:
             positions[event.symbol] = _PositionUnits(remaining, old.cost_units - released)

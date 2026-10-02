@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal, localcontext
+from decimal import ROUND_DOWN, Decimal, Inexact, Rounded, localcontext
 from pathlib import Path
 from random import Random
 
@@ -130,6 +130,48 @@ def test_accounting_is_independent_of_callers_decimal_precision() -> None:
         context.prec = 6
         assert ledger.summary() == expected
         assert ledger.positions["ACME"].cost_basis == Decimal(expected["inventory_cost"])
+
+
+def test_accounting_replay_and_marks_ignore_decimal_traps_and_exponents(tmp_path) -> None:
+    def transactions() -> Ledger:
+        ledger = funded()
+        ledger.append(fill("buy", "buy", "3", "1", "0.00000001"))
+        ledger.append(fill("sell", "sell", "1", "2", days=2))
+        return ledger
+
+    expected = transactions()
+    as_of = T0 + timedelta(days=2)
+    quotes = [PriceQuote("ACME", as_of, as_of, Decimal("1.23456789"))]
+    marked = mark_to_market(expected, quotes, as_of)
+    with localcontext() as context:
+        context.prec = 2
+        context.rounding = ROUND_DOWN
+        context.Emax = 1
+        context.Emin = -1
+        context.traps[Inexact] = True
+        context.traps[Rounded] = True
+        actual = transactions()
+        assert actual.summary() == expected.summary()
+        assert mark_to_market(actual, quotes, as_of) == marked
+        path = tmp_path / "journal.jsonl"
+        actual.save(path)
+        assert Ledger.load(path, expected_head=expected.head_hash).summary() == expected.summary()
+        assert context.prec == 2 and context.traps[Inexact]
+
+
+@pytest.mark.parametrize("amount", ["1." + "0" * 140 + "1", "0." + "0" * 140 + "1"])
+def test_cash_and_fees_cannot_hide_subquantum_digits_beyond_working_precision(amount) -> None:
+    with pytest.raises(LedgerError, match="multiple"):
+        CashEvent("fraction", T0, "deposit", Decimal(amount))
+    with pytest.raises(LedgerError, match="multiple"):
+        FillEvent("fraction", T0, "ACME", "buy", Decimal("1"), Decimal("1"), Decimal(amount))
+
+
+def test_trailing_zero_decimal_places_still_represent_exact_money() -> None:
+    amount = Decimal("1." + "0" * 140)
+    ledger = Ledger()
+    ledger.append(CashEvent("exact", T0, "deposit", amount))
+    assert ledger.summary()["cash"] == "1"
 
 
 def test_fill_precision_limit_is_explicit() -> None:

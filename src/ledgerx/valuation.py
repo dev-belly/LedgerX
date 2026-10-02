@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any
 
 from ledgerx.core import (
+    _DECIMAL_CONTEXT,
     _SYMBOL,
-    DECIMAL_PRECISION,
     MAX_FILL_DECIMAL_PLACES,
     Ledger,
     LedgerError,
@@ -139,8 +139,7 @@ def mark_to_market(
             raise LedgerError(f"No available quote for open position: {symbol}")
         if cutoff - selected.observed_at > timedelta(seconds=max_age_seconds):
             raise LedgerError(f"Stale quote for open position: {symbol}")
-        with localcontext() as context:
-            context.prec = DECIMAL_PRECISION
+        with localcontext(_DECIMAL_CONTEXT):
             value = position.quantity * selected.price
         value_units = _units(value, "market value")
         cost_units = _units(position.cost_basis, "cost basis", exact=True)
