@@ -9,6 +9,12 @@ actual fill facts, not target weights or forecasts. The core uses only Python's
 standard library and `Decimal`; there are no market data calls. An optional,
 separate price snapshot can estimate unrealized P&L without changing the ledger.
 
+Accounting and valuation use an isolated 128-digit, half-even Decimal context.
+An importing application's precision, rounding, exponent limits and inexact
+traps cannot change journal replay. Cash transfers and fees must equal their
+original amount at the `1e-8` USD quantum; digits beyond working precision are
+checked against that original amount rather than silently rounded away.
+
 ## Run it
 
 ```bash
