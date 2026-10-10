@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_DOWN, Decimal, Inexact, Rounded, localcontext
@@ -422,6 +423,58 @@ def test_invalid_quote_price_is_reported_with_row_number(tmp_path, capsys) -> No
         == 2
     )
     assert "Invalid quote CSV row 2" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("price_field", ['"105\n', '"105"extra\n'])
+def test_malformed_quote_csv_is_rejected_before_valuation(tmp_path, capsys, price_field) -> None:
+    quotes_path = tmp_path / "quotes.csv"
+    quotes_path.write_text(
+        "symbol,observed_at,available_at,price\n"
+        "ACME,2024-01-04T16:00:00Z,2024-01-04T16:01:00Z," + price_field,
+        encoding="utf-8",
+    )
+    with pytest.raises(LedgerError, match="Malformed quote CSV at line 2"):
+        load_quotes(quotes_path)
+    journal = tmp_path / "journal.jsonl"
+    ledger = funded()
+    ledger.append(fill("buy", "buy", "1", "100"))
+    ledger.save(journal)
+    before = journal.read_bytes()
+    assert (
+        main(
+            [
+                "mark",
+                str(journal),
+                "--quotes",
+                str(quotes_path),
+                "--as-of",
+                "2024-01-04T17:00:00Z",
+            ]
+        )
+        == 2
+    )
+    output = capsys.readouterr()
+    assert "Malformed quote CSV at line 2" in output.err
+    assert output.out == ""
+    assert journal.read_bytes() == before
+
+
+def test_well_formed_quoted_csv_fields_remain_supported(tmp_path) -> None:
+    quotes_path = tmp_path / "quotes.csv"
+    quotes_path.write_bytes(
+        b'"symbol","observed_at","available_at","price"\r\n'
+        b'"ACME","2024-01-04T16:00:00Z","2024-01-04T16:01:00Z","105"\r\n'
+    )
+    quotes, digest = load_quotes(quotes_path)
+    assert quotes == [
+        PriceQuote(
+            "ACME",
+            datetime(2024, 1, 4, 16, tzinfo=UTC),
+            datetime(2024, 1, 4, 16, 1, tzinfo=UTC),
+            Decimal("105"),
+        )
+    ]
+    assert digest == hashlib.sha256(quotes_path.read_bytes()).hexdigest()
 
 
 def test_cli_mark_matches_published_example_and_checks_head(tmp_path, capsys) -> None:

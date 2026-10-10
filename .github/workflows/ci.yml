@@ -6,12 +6,19 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python-version: ["3.11", "3.12", "3.13"]
+        include:
+          - os: windows-latest
+            python-version: "3.12"
     steps:
+      - name: Exercise Windows newline conversion
+        if: matrix.os == 'windows-latest'
+        run: git config --global core.autocrlf true
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
@@ -21,3 +28,5 @@ jobs:
       - run: ruff format --check src tests
       - run: mypy src
       - run: pytest -q
+        env:
+          PYTHONUTF8: "0"

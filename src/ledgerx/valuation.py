@@ -69,7 +69,7 @@ def load_quotes(path: str | Path) -> tuple[list[PriceQuote], str]:
     """Read one strict CSV byte snapshot and return its SHA-256 provenance."""
     raw = Path(path).read_bytes()
     try:
-        reader = csv.DictReader(io.StringIO(raw.decode("utf-8"), newline=""))
+        reader = csv.DictReader(io.StringIO(raw.decode("utf-8"), newline=""), strict=True)
         if reader.fieldnames != list(QUOTE_COLUMNS):
             raise LedgerError("Quote CSV needs symbol,observed_at,available_at,price headers")
         quotes: list[PriceQuote] = []
@@ -87,6 +87,8 @@ def load_quotes(path: str | Path) -> tuple[list[PriceQuote], str]:
                 )
             except (ValueError, TypeError, InvalidOperation) as exc:
                 raise LedgerError(f"Invalid quote CSV row {line_no}: {exc}") from exc
+    except csv.Error as exc:
+        raise LedgerError(f"Malformed quote CSV at line {reader.reader.line_num}: {exc}") from exc
     except UnicodeDecodeError as exc:
         raise LedgerError("Quote CSV must be UTF-8") from exc
     return quotes, hashlib.sha256(raw).hexdigest()
