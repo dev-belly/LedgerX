@@ -26,6 +26,16 @@ ledgerx verify demo.jsonl
 pytest
 ```
 
+On Windows PowerShell, use the environment's executables directly:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\ledgerx.exe demo --out demo.jsonl
+.\.venv\Scripts\ledgerx.exe verify demo.jsonl
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
 The demo posts a **synthetic** USD 10,000 deposit, buys 10 ACME shares at 100
 with a 1 fee, then sells 4 at 110 with a 1 fee. It yields cash 9,438,
 remaining cost basis 600.6, and realized P&L 38.6. The JSONL file has one
@@ -64,7 +74,8 @@ P&L. No quote is inferred from a trade fill.
 
 Quotes must be finite, positive decimal prices for uppercase symbols, in the
 exact CSV schema `symbol,observed_at,available_at,price`. Timestamps need UTC
-offsets. The latest observed quote available by `--as-of` is used; revisions
+offsets. Malformed CSV quoting fails with its input line number before valuation.
+The latest observed quote available by `--as-of` is used; revisions
 of one observation use the latest available version. Missing or older than
 `--max-age-seconds` (default 86,400) fails rather than silently using cost or a
 future price. A full journal with an event after the cutoff is rejected; use a
@@ -73,6 +84,10 @@ quote timestamps, the journal head and SHA-256 of the quote CSV bytes. Use
 `--expected-head` with a separately saved checkpoint to detect journal
 truncation. The quote hash proves which file was read, not whether its prices
 are genuine.
+
+The repository preserves LF line endings, including the published quote CSV,
+so its byte digest matches the example on Windows and Unix. External quote CSV
+files may use CRLF; their SHA-256 still records the exact bytes supplied.
 
 This is a **mid-price research estimate**, without a sale spread, fees,
 liquidity constraints, FX or a claim about obtainable liquidation proceeds.
@@ -141,5 +156,7 @@ than trusting stored balances.
 ## Development
 
 CI runs `ruff check`, `ruff format --check`, `mypy` and `pytest` on Python
-3.11–3.13. Tests cover fee accounting, partial and full closes, rejection
-atomicity, deterministic replay, tampering and the CLI.
+3.11–3.13 on Linux and Python 3.12 on Windows. The Windows checkout enables
+Git's automatic newline conversion to verify the published quote digest.
+Tests cover fee accounting, partial and full closes, rejection atomicity,
+deterministic replay, tampering, malformed CSV quotes and the CLI.

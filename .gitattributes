@@ -1,0 +1,2 @@
+# Preserve the quote CSV byte digest across Windows and Unix checkouts.
+* text=auto eol=lf
