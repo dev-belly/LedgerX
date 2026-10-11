@@ -97,7 +97,10 @@ def _identity(event_id: str, occurred_at: datetime) -> datetime:
         raise LedgerError("occurred_at must be a timezone-aware datetime")
     if occurred_at.utcoffset() is None:
         raise LedgerError("occurred_at must have a valid UTC offset")
-    return occurred_at.astimezone(UTC)
+    try:
+        return occurred_at.astimezone(UTC)
+    except OverflowError as exc:
+        raise LedgerError("occurred_at is outside the supported UTC datetime range") from exc
 
 
 @dataclass(frozen=True)

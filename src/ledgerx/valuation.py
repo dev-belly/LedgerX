@@ -32,7 +32,10 @@ QUOTE_COLUMNS = ("symbol", "observed_at", "available_at", "price")
 def _utc(value: datetime, label: str) -> datetime:
     if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
         raise LedgerError(f"{label} must be a timezone-aware datetime")
-    return value.astimezone(UTC)
+    try:
+        return value.astimezone(UTC)
+    except OverflowError as exc:
+        raise LedgerError(f"{label} is outside the supported UTC datetime range") from exc
 
 
 def _timestamp(value: str, label: str) -> datetime:
