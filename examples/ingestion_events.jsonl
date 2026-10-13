@@ -1,0 +1,4 @@
+{"kind":"cash","event_id":"fund-001","occurred_at":"2024-01-02T00:00:00Z","direction":"deposit","amount":"10000"}
+{"kind":"fill","event_id":"fill-001","occurred_at":"2024-01-03T00:00:00Z","symbol":"ACME","side":"buy","quantity":"10","price":"100","fee":"1"}
+{"kind":"fill","event_id":"fill-002","occurred_at":"2024-01-04T00:00:00Z","symbol":"ACME","side":"sell","quantity":"4","price":"110","fee":"1"}
+{"kind":"fill","event_id":"fill-001","occurred_at":"2024-01-03T00:00:00Z","symbol":"ACME","side":"buy","quantity":"10.0","price":"100.00","fee":"1.00"}

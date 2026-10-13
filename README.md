@@ -9,6 +9,8 @@ actual fill facts, not target weights or forecasts. The core uses only Python's
 standard library and `Decimal`; there are no market data calls. An optional,
 separate price snapshot can estimate unrealized P&L without changing the ledger.
 
+[中文业务说明：批次原子导入与安全重试](docs/BATCH_INGESTION.md)
+
 Accounting and valuation use an isolated 128-digit, half-even Decimal context.
 An importing application's precision, rounding, exponent limits and inexact
 traps cannot change journal replay. Cash transfers and fees must equal their
@@ -51,6 +53,43 @@ ledgerx verify demo.jsonl --expected-head <previously-recorded-head-hash>
 
 The demo output is synthetic; the checkpoint must come from a prior trusted
 run, not from the same file being verified.
+
+## Retriable event-feed intake
+
+```bash
+ledgerx ingest imported.jsonl --events examples/ingestion_events.jsonl
+ledgerx ingest imported.jsonl --events examples/ingestion_events.jsonl
+ledgerx verify imported.jsonl
+```
+
+The synthetic feed contains three economic facts and a repeated buy. The first
+import appends three records and reuses one; the second appends zero and reuses
+all four, leaving the original journal bytes unchanged. Cash, cost basis and
+realized P&L match the three-event demo. The output records input row counts,
+the exact feed-byte SHA-256, the previous journal head and the resulting ledger.
+The [published first-import and retry result](examples/ingestion_result.json)
+is regenerated and checked against the input feed in the regression suite.
+
+`ingest` verifies an existing journal or starts an empty one, validates every
+raw-event JSONL row, stages the entire batch and publishes only after all
+new events pass accounting checks. All fields must be strings and exactly
+match the event schema shown in the [business contract](docs/BATCH_INGESTION.md).
+A same-ID retry must match the validated event type, UTC timestamp and every
+economic field; equivalent Decimal representations are accepted without
+rewriting the original record. Conflicting content rejects the whole batch.
+Identical repetitions inside a batch also reuse the first record. New facts
+retain input order and must satisfy the existing UTC ordering rule; old retries
+do not create new records and can arrive later. No sorting or correction is
+inferred from a conflicting ID.
+
+The Python `Ledger.append_batch(events)` API gives the same all-or-nothing
+memory posting and returns one original or new `JournalRecord` per input row.
+`append` and journal replay remain strict about duplicate IDs. The combined
+`ingest_journal` function stages a private ledger and atomically publishes its
+snapshot; input, accounting or publication failures produce no success output
+in the CLI. `--expected-head` optionally checks an independently retained
+pre-import checkpoint. These are local single-writer guarantees; the checkpoint
+does not lock the file between reading and replacing it.
 
 ## Point-in-time portfolio marks
 
@@ -160,3 +199,6 @@ CI runs `ruff check`, `ruff format --check`, `mypy` and `pytest` on Python
 Git's automatic newline conversion to verify the published quote digest.
 Tests cover fee accounting, partial and full closes, rejection atomicity,
 deterministic replay, tampering, malformed CSV quotes and the CLI.
+Batch regressions also cover mixed retries and new fills, conflicting IDs,
+rollback after a later overdraft, broken input iterators, strict JSONL parsing,
+and snapshot replacement failure with temporary-file cleanup.

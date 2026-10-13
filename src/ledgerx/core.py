@@ -12,6 +12,7 @@ import json
 import os
 import re
 import tempfile
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import (
@@ -309,6 +310,43 @@ class Ledger:
         self._seen_ids.add(event.event_id)
         self._records.append(record)
         return record
+
+    def append_batch(self, events: Iterable[Event]) -> tuple[JournalRecord, ...]:
+        """Post a whole batch or keep the ledger unchanged.
+
+        Identical retries reuse their original records, including duplicates
+        within this batch. Identity means equal validated event type, UTC
+        timestamp and all economic fields; Decimal formatting is immaterial.
+        New events retain input order and must follow the journal's UTC order.
+        This method does not save a snapshot or coordinate concurrent callers.
+        """
+        candidate = Ledger()
+        candidate._balances = dict(self._balances)
+        candidate._positions = dict(self._positions)
+        candidate._records = list(self._records)
+        candidate._seen_ids = set(self._seen_ids)
+        by_id = {record.event.event_id: record for record in candidate._records}
+        accepted = []
+        for row_number, event in enumerate(events, 1):
+            if not isinstance(event, (CashEvent, FillEvent)):
+                raise LedgerError("Unsupported event type")
+            existing = by_id.get(event.event_id)
+            if existing is not None:
+                if existing.event != event:
+                    raise LedgerError(f"Conflicting event_id: {event.event_id}")
+                accepted.append(existing)
+                continue
+            try:
+                record = candidate.append(event)
+            except LedgerError as error:
+                raise LedgerError(f"Batch row {row_number} ({event.event_id}): {error}") from error
+            by_id[event.event_id] = record
+            accepted.append(record)
+        self._balances = candidate._balances
+        self._positions = candidate._positions
+        self._records = candidate._records
+        self._seen_ids = candidate._seen_ids
+        return tuple(accepted)
 
     def _entries(self, event: Event, positions: dict[str, _PositionUnits]) -> tuple[Entry, ...]:
         if isinstance(event, CashEvent):
