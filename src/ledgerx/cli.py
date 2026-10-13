@@ -10,6 +10,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from ledgerx.core import CashEvent, FillEvent, Ledger, LedgerError
+from ledgerx.ingestion import ingest_journal
 from ledgerx.valuation import load_quotes, mark_to_market
 
 
@@ -54,6 +55,14 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument(
         "--expected-head", help="Check against a previously saved SHA-256 head checkpoint"
     )
+    ingest = commands.add_parser(
+        "ingest", help="Atomically import a retriable raw-event JSONL batch"
+    )
+    ingest.add_argument("journal", type=Path)
+    ingest.add_argument("--events", type=Path, required=True)
+    ingest.add_argument(
+        "--expected-head", help="Check a separately retained pre-import journal head"
+    )
     mark = commands.add_parser("mark", help="Value a verified journal using separate USD quotes")
     mark.add_argument("journal", type=Path)
     mark.add_argument("--quotes", type=Path, required=True)
@@ -62,6 +71,18 @@ def main(argv: list[str] | None = None) -> int:
     mark.add_argument("--expected-head", help="Check a separately saved journal head")
     args = parser.parse_args(argv)
     try:
+        if args.command == "ingest":
+            print(
+                json.dumps(
+                    ingest_journal(
+                        args.journal,
+                        args.events,
+                        expected_head=args.expected_head,
+                    ),
+                    indent=2,
+                )
+            )
+            return 0
         if args.command == "mark":
             ledger = Ledger.load(args.journal, expected_head=args.expected_head)
             quotes, digest = load_quotes(args.quotes)

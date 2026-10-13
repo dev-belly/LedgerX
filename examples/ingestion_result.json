@@ -1,0 +1,46 @@
+{
+  "first_import": {
+    "input_rows": 4,
+    "appended_events": 3,
+    "reused_events": 1,
+    "input_sha256": "50aea648925b359b7e14d5509e0aa4a4b7233ce3768510f65bb76d20399684f3",
+    "previous_head": "0000000000000000000000000000000000000000000000000000000000000000",
+    "ledger": {
+      "events": 3,
+      "head_hash": "71cd9531b38e5bf9db26e63fe6dfb39f1593a27c1c03f9c42a0d46cb1c823cf9",
+      "cash": "9438",
+      "inventory_cost": "600.6",
+      "net_contributions": "10000",
+      "realized_pnl": "38.6",
+      "book_equity": "10038.6",
+      "positions": {
+        "ACME": {
+          "quantity": "6",
+          "cost_basis": "600.6"
+        }
+      }
+    }
+  },
+  "full_retry": {
+    "input_rows": 4,
+    "appended_events": 0,
+    "reused_events": 4,
+    "input_sha256": "50aea648925b359b7e14d5509e0aa4a4b7233ce3768510f65bb76d20399684f3",
+    "previous_head": "71cd9531b38e5bf9db26e63fe6dfb39f1593a27c1c03f9c42a0d46cb1c823cf9",
+    "ledger": {
+      "events": 3,
+      "head_hash": "71cd9531b38e5bf9db26e63fe6dfb39f1593a27c1c03f9c42a0d46cb1c823cf9",
+      "cash": "9438",
+      "inventory_cost": "600.6",
+      "net_contributions": "10000",
+      "realized_pnl": "38.6",
+      "book_equity": "10038.6",
+      "positions": {
+        "ACME": {
+          "quantity": "6",
+          "cost_basis": "600.6"
+        }
+      }
+    }
+  }
+}
