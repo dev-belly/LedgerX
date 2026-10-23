@@ -114,7 +114,7 @@ def mark_to_market(
         raise LedgerError("max_age_seconds must be an integer from 1 to 31536000")
     if ledger.records and ledger.records[-1].event.occurred_at > cutoff:
         raise LedgerError("Journal contains an event after valuation cutoff")
-    book = ledger.summary()  # Check the historical-cost accounting invariant first.
+    ledger.summary()  # Check the historical-cost accounting invariant first.
     cash = _units(ledger.balance("cash"), "cash", exact=True)
     contributed = -_units(ledger.balance("external_equity"), "contributions", exact=True)
     realized = -_units(ledger.balance("realized_pnl"), "realized P&L", exact=True)
@@ -136,7 +136,7 @@ def mark_to_market(
         ):
             usable[quote.symbol] = quote
 
-    market = 0
+    market = inventory = 0
     rows: dict[str, dict[str, str]] = {}
     for symbol, position in sorted(ledger.positions.items()):
         selected = usable.get(symbol)
@@ -149,6 +149,7 @@ def mark_to_market(
         value_units = _units(value, "market value")
         cost_units = _units(position.cost_basis, "cost basis", exact=True)
         market += value_units
+        inventory += cost_units
         rows[symbol] = {
             "quantity": str(position.quantity),
             "cost_basis": _money_text(cost_units),
@@ -158,7 +159,6 @@ def mark_to_market(
             "observed_at": selected.observed_at.isoformat().replace("+00:00", "Z"),
             "available_at": selected.available_at.isoformat().replace("+00:00", "Z"),
         }
-    inventory = _units(Decimal(book["inventory_cost"]), "inventory cost", exact=True)
     unrealized = market - inventory
     if cash + market != contributed + realized + unrealized:
         raise LedgerError("Marked equity does not reconcile to contributions and P&L")

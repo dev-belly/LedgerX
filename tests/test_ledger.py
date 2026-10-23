@@ -378,6 +378,32 @@ def test_mark_uses_latest_observed_available_revision_and_requires_freshness() -
         mark_to_market(ledger, [quotes[0], quotes[0]], observed + timedelta(minutes=20))
 
 
+def test_mark_accepts_total_inventory_above_individual_account_limit(tmp_path) -> None:
+    ledger = Ledger()
+    ledger.append(CashEvent("deposit", T0, "deposit", Decimal("1e16")))
+    for event_id, symbol, side, price in [
+        ("buy-a", "A", "buy", "5e15"),
+        ("buy-b", "B", "buy", "5e15"),
+        ("sell-a", "A", "sell", "1e16"),
+        ("buy-c", "C", "buy", "1e16"),
+    ]:
+        ledger.append(FillEvent(event_id, T0, symbol, side, Decimal(1), Decimal(price)))
+    journal = tmp_path / "large-portfolio.jsonl"
+    ledger.save(journal)
+    replayed = Ledger.load(journal)
+    before = replayed.summary()
+    result = mark_to_market(
+        replayed,
+        [PriceQuote("B", T0, T0, Decimal("5e15")), PriceQuote("C", T0, T0, Decimal("1e16"))],
+        T0,
+    )
+    assert result["inventory_cost"] == result["market_value"] == "15000000000000000"
+    assert result["marked_equity"] == "15000000000000000"
+    assert result["realized_pnl"] == "5000000000000000"
+    assert result["unrealized_pnl"] == "0"
+    assert replayed.summary() == before
+
+
 def test_mark_rejects_future_journal_and_bad_quote_contract(tmp_path) -> None:
     ledger = funded()
     ledger.append(fill("buy", "buy", "1", "100"))
