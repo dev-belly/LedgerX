@@ -1,0 +1,45 @@
+name: Bug report
+description: "Reproduce a problem with balanced postings, retry identity and journal/valuation replay."
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use synthetic or appropriately licensed public inputs. Do not attach private records or credentials.
+        Suspected vulnerabilities: follow [SECURITY.md](https://github.com/dev-belly/LedgerX/blob/main/SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: Version or full commit
+      description: Include the installed package version and source revision when known.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version and relevant dependency versions.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or API call
+      description: Include the working directory assumptions and exact options.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproducible input and steps
+      description: "A few synthetic event JSONL rows or quote CSV rows, retaining Decimal strings, timestamps and event IDs."
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result
+      description: "Include the prior head checkpoint if one was independently retained, input row order and expected balances. Do not publish real transaction journals."
+    validations:
+      required: true

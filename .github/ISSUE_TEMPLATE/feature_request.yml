@@ -1,0 +1,30 @@
+name: Feature request
+description: "Propose a concrete improvement to balanced postings, retry identity and journal/valuation replay."
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and user workflow
+      description: Describe a task that the current contract makes difficult, with a small synthetic example.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed behavior
+      description: "Explain inputs, outputs and failure behavior. Preserve the project's focus on balanced postings, retry identity and journal/valuation replay."
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: How to check the result
+      description: "Include the prior head checkpoint if one was independently retained, input row order and expected balances. Do not publish real transaction journals."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Existing approach and alternatives
+      description: Link relevant documentation or prior issues and explain the remaining gap.

@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # Numerical/runtime dependencies stay under the project's replay process.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      github-actions:
+        patterns:
+          - "*"
