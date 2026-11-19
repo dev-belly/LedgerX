@@ -69,7 +69,22 @@ def main(argv: list[str] | None = None) -> int:
     mark.add_argument("--as-of", type=datetime.fromisoformat, required=True)
     mark.add_argument("--max-age-seconds", type=int, default=86_400)
     mark.add_argument("--expected-head", help="Check a separately saved journal head")
+    web = commands.add_parser("web", help="Open the local browser workbench")
+    web.add_argument("journal", type=Path)
+    web.add_argument("--port", type=int, default=8765)
     args = parser.parse_args(argv)
+    if args.command == "web":
+        from ledgerx.workbench import serve
+
+        try:
+            if not 0 <= args.port <= 65535:
+                raise ValueError("Port must be between 0 and 65535")
+            serve(args.journal, args.port)
+        except (OSError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        return 0
+
     try:
         if args.command == "ingest":
             print(

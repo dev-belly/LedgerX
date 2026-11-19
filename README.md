@@ -202,3 +202,13 @@ deterministic replay, tampering, malformed CSV quotes and the CLI.
 Batch regressions also cover mixed retries and new fills, conflicting IDs,
 rollback after a later overdraft, broken input iterators, strict JSONL parsing,
 and snapshot replacement failure with temporary-file cleanup.
+
+## Local import and reconciliation page
+
+Run `ledgerx web demo-ledger.jsonl` from a new directory or pass an existing journal.
+Open the printed loopback URL and upload the repository's
+[`examples/ingestion_events.jsonl`](examples/ingestion_events.jsonl). Import it twice.
+The second import reuses all four rows and leaves balances and the journal head
+unchanged. The page shows exact balances, the head, and up to 100 recent entries.
+Keep one writer per journal: avoid running another workbench or the ingest CLI
+against that file while this process is serving it.
