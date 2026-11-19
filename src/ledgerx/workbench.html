@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Import and reconcile</title>
+<style>
+:root {font: 16px/1.5 system-ui; color: #17312b; background: #f2f5f1}
+* {box-sizing: border-box}
+body {margin: 0}
+header {background: #153b31; color: white; padding: 1rem max(1rem, calc((100vw - 960px)/2))}
+main {max-width: 992px; margin: auto; padding: 1.5rem 1rem}
+h1 {margin: 0 0 1rem; line-height: 1.15}
+h2 {font-size: 1.1rem}
+section {padding: 1rem; margin: 1rem 0; background: white; border: 1px solid #c8d7ce; border-radius: .75rem}
+.controls {display: flex; flex-wrap: wrap; gap: .75rem; align-items: end}
+label {display: grid; gap: .25rem; min-width: 0}
+button,input,select,textarea {font: inherit; border: 1px solid #73877f; border-radius: .4rem; padding: .45rem .6rem; max-width: 100%}
+button {background: #18583f; color: white; cursor: pointer}
+button:disabled {opacity: .6; cursor: default}
+:focus-visible {outline: 3px solid #ac6c08; outline-offset: 2px}
+output {display: block; min-height: 1.5em; margin: 1rem 0}
+output[data-error="true"] {color: #952d17}
+li,code,dd {overflow-wrap: anywhere}
+dl {display: grid; grid-template-columns: minmax(5rem, 1fr) 2fr; gap: .25rem .75rem}
+dd {margin: 0; font-variant-numeric: tabular-nums}
+[hidden] {display:none!important}
+</style>
+<header>LedgerX · Local workspace</header>
+<main>
+<h1>Import and reconcile</h1>
+
+<section>
+<form id="import" class="controls">
+  <label>UTF-8 JSONL event feed <input type="file" id="feed" accept=".jsonl,.ndjson" required></label>
+  <button id="submit" disabled>Import batch</button>
+  <button id="reload" type="button">Refresh</button>
+</form>
+</section>
+<output id="message" role="status"></output>
+
+<section><h2>Ledger balances</h2><dl id="balances"></dl><p>Journal head <code id="head"></code></p></section>
+<section><h2>Latest journal entries</h2><ol id="records"></ol></section>
+</main>
+<script>
+const byId = id => document.getElementById(id);
+function node(tag, value) {
+  const item = document.createElement(tag);
+  item.textContent = value;
+  return item;
+}
+function status(message, error = false) {
+  byId("message").textContent = message;
+  byId("message").dataset.error = error;
+}
+async function api(path, body) {
+  const response = await fetch("/api/" + path, body === undefined ? {} : {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)
+  });
+  const value = await response.json();
+  if (!response.ok) throw new Error(value.error);
+  return value;
+}
+
+let head;
+let busy = false;
+const balances = {cash: "Cash", inventory_cost: "Inventory cost", net_contributions: "Net contributions",
+  realized_pnl: "Realized P&L", book_equity: "Book equity", events: "Events"};
+function controls() { byId("submit").disabled = busy || !head; }
+async function refresh() {
+  const {ledger, records} = await api("state");
+  head = ledger.head_hash;
+  byId("head").textContent = head;
+  byId("balances").replaceChildren(...Object.entries(balances).flatMap(([key, label]) =>
+    [node("dt", label), node("dd", ledger[key])]));
+  byId("records").replaceChildren(...records.map(record => {
+    const entry = node("li", "#" + record.sequence + " · " + record.event.event_id);
+    const lines = node("ul", "");
+    lines.append(...record.entries.map(row => node("li", row.account + " · " + row.amount)));
+    entry.append(lines);
+    return entry;
+  }));
+}
+byId("reload").addEventListener("click", async () => {
+  if (busy) return;
+  busy = true;
+  controls();
+  try { await refresh(); status("Journal refreshed."); }
+  catch (error) { status(error.message, true); }
+  finally { busy = false; controls(); }
+});
+byId("import").addEventListener("submit", async event => {
+  event.preventDefault();
+  const file = byId("feed").files[0];
+  if (!file || !head || busy) return;
+  if (file.size > 1048576) { status("Event feed exceeds 1 MiB.", true); return; }
+  busy = true;
+  controls();
+  try {
+    const feed = new TextDecoder("utf-8", {fatal: true, ignoreBOM: true}).decode(await file.arrayBuffer());
+    const result = await api("change", {feed, expected_head: head});
+    await refresh();
+    status("Appended " + result.appended_events + " · Reused " + result.reused_events);
+  } catch (error) {
+    status(error.message, true);
+    try { await refresh(); } catch { /* Keep the import error visible. */ }
+  } finally { busy = false; controls(); }
+});
+refresh().catch(error => status(error.message, true)).finally(controls);
+
+</script>
+</html>
