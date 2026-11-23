@@ -153,6 +153,21 @@ def test_cli_ingestion_retry_preserves_exact_journal_bytes(tmp_path, capsys) -> 
     )
 
 
+def test_import_accepts_windows_feed_and_hashes_the_original_bytes(tmp_path) -> None:
+    journal = tmp_path / "journal.jsonl"
+    feed = tmp_path / "events.jsonl"
+    write_feed(feed, event_rows())
+    raw = b"\xef\xbb\xbf" + feed.read_bytes().replace(b"\n", b"\r\n")
+    feed.write_bytes(raw)
+
+    receipt = ingest_journal(journal, feed)
+    assert receipt["input_sha256"] == hashlib.sha256(raw).hexdigest()
+    assert receipt["ledger"] == demo().summary()
+    retry = ingest_journal(journal, feed)
+    assert retry["input_sha256"] == receipt["input_sha256"]
+    assert retry["appended_events"] == 0
+
+
 def test_mixed_retry_and_new_fill_only_extends_history(tmp_path) -> None:
     journal = tmp_path / "ledger.jsonl"
     demo().save(journal)
@@ -227,6 +242,8 @@ def test_snapshot_publication_failure_preserves_original_and_cleans_temporary_fi
     "content, message",
     [
         (b"", "empty"),
+        (b"\xef\xbb\xbf", "empty"),
+        (b"\xef\xbb\xbf\xef\xbb\xbf{}", "row 1"),
         (b"\xff", "UTF-8"),
         (b"\n", "row 1"),
         (b'{"kind":"cash","kind":"cash"}\n', "Duplicate JSON key"),

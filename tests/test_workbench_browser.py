@@ -1,5 +1,6 @@
 """Verify the bundled workbench against a real loopback API in Chrome."""
 
+import hashlib
 import json
 import os
 import shutil
@@ -122,11 +123,26 @@ def test_import_retry_and_journal_detail(tmp_path):
         assert run("return document.querySelector('#submit').disabled")
         assert run("return document.querySelector('#draft').value.includes('fund-001')")
         assert run("return document.querySelector('#event-count').textContent") == "0"
-        run("document.querySelector('#sample').click(); document.querySelector('#submit').click()")
+        original = run("return document.querySelector('#draft').value")
+        windows_feed = "\ufeff" + original.replace("\n", "\r\n")
+        run(f"""
+            const file = new File([{json.dumps(windows_feed)}], "windows.jsonl");
+            const transfer = new DataTransfer();
+            transfer.items.add(file);
+            const input = document.querySelector("#feed");
+            input.files = transfer.files;
+            input.dispatchEvent(new Event("change"));
+        """)
+        wait_until(lambda: run(message_script) == "windows.jsonl loaded for review.")
+        assert run("return !document.querySelector('#submit').disabled")
+        run("document.querySelector('#submit').click()")
         wait_until(lambda: run("return document.querySelector('#event-count').textContent === '3'"))
         assert run("return document.querySelector('#book').textContent") == "$10,038.60"
         count_script = "return document.querySelector('#batch-count').textContent"
         assert run(count_script) == "3 appended · 1 reused"
+        assert run("return document.querySelector('#feed-digest').textContent") == (
+            hashlib.sha256(windows_feed.encode()).hexdigest()
+        )
         run("document.querySelector('#submit').click()")
         wait_until(lambda: run(count_script) == "0 appended · 4 reused")
         run("document.querySelector('#records button').click()")
