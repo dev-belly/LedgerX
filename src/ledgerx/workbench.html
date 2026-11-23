@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LedgerX · Import & reconciliation</title>
 <style>
-:root{color-scheme:light;--ink:#152526;--muted:#526469;--line:#dbe6e3;--panel:#fff;--green:#126251;--lime:#daefb8;font:15px/1.5 system-ui,sans-serif;background:#f1f6f4;color:var(--ink)}
+:root{color-scheme:light;--ink:#152526;--muted:#526469;--line:#dbe6e3;--panel:#fff;--green:#126251;--lime:#daefb8;font:16px/1.55 system-ui,sans-serif;background:#f1f6f4;color:var(--ink)}
 *{box-sizing:border-box}
 body{margin:0}
 [hidden]{display:none!important}
@@ -42,7 +42,7 @@ h1,h2,h3,p{margin:0}
 .panel-header,.actions,.result-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
 h2{font-size:1.25rem;letter-spacing:-.035em}
 h3{font-size:1rem}
-.panel-header{margin-bottom:14px}
+.panel-header{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
 .field{display:grid;gap:5px;font-size:.86rem;font-weight:650}
 textarea,input[type="search"],input[type="file"]{width:100%;min-width:0;border:1px solid #cee0da;border-radius:9px;background:#f7fbf9;padding:9px 11px}
 textarea{font:.81rem/1.55 ui-monospace,Consolas,monospace;resize:vertical;min-height:120px;margin:8px 0}
@@ -106,7 +106,7 @@ tr[data-current="true"]{background:#e8f5ee}
 <label class="field" for="draft">Event text</label>
 <textarea id="draft" spellcheck="false" autocomplete="off" aria-describedby="preview" placeholder="Paste one event per line"></textarea>
 <p id="preview" class="muted"></p>
-<div class="actions"><button id="submit" type="submit" class="primary" disabled>Import batch</button><button id="reload" type="button">Refresh journal</button></div>
+<div class="actions"><button id="submit" type="submit" class="primary" aria-describedby="preview message" disabled>Import batch</button><button id="reload" type="button">Refresh journal</button></div>
 </form>
 <output id="message" class="status" role="status">Reading local journal…</output>
 <div id="batch-result" class="result" hidden><div class="result-top"><strong id="batch-title"></strong><span id="batch-count" class="muted"></span></div>
@@ -140,6 +140,7 @@ const search = byId("search");
 let draft = "";
 let validDraft = false;
 let readingFile = 0;
+let fileState = "ready";
 let busy = false;
 let workspace;
 let selected;
@@ -155,8 +156,9 @@ function formatUSD(value) {
   return sign + "$" + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + cents.padEnd(2, "0");
 }
 function quantum(value) {
-  const [whole, fraction = ""] = value.split(".");
-  return BigInt(whole) * 100000000n + BigInt(fraction.padEnd(8, "0"));
+  const sign = value.startsWith("-") ? -1n : 1n;
+  const [whole, fraction = ""] = value.replace(/^-/, "").split(".");
+  return sign * (BigInt(whole) * 100000000n + BigInt(fraction.padEnd(8, "0")));
 }
 function status(message, error = false) {
   byId("message").textContent = message;
@@ -190,7 +192,7 @@ function setDraft(value, updateField = true) {
   controls();
 }
 function controls() {
-  byId("submit").disabled = busy || !workspace || !validDraft;
+  byId("submit").disabled = busy || fileState !== "ready" || !workspace || !validDraft;
   byId("reload").disabled = busy;
   feedField.disabled = busy;
   draftField.disabled = busy;
@@ -288,22 +290,32 @@ feedField.addEventListener("change", async () => {
   if (!file) return;
   const revision = ++readingFile;
   feedField.value = "";
+  fileState = "reading";
+  controls();
+  status("Reading " + file.name + "…");
   try {
     if (file.size > MAX_BYTES) throw new Error("Use a feed of 1 MiB or less.");
     const value = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await file.arrayBuffer());
     if (revision !== readingFile) return;
+    fileState = "ready";
     setDraft(value);
-    status(file.name + " loaded for review.");
+    status(validDraft ? file.name + " loaded for review." : "Review the selected feed before importing.", !validDraft);
   } catch (error) {
-    if (revision === readingFile) status(error.message, true);
+    if (revision !== readingFile) return;
+    fileState = "failed";
+    controls();
+    status(error.message + " Edit the draft or load a feed to continue.", true);
   }
 });
 draftField.addEventListener("input", () => {
   readingFile++;
+  if (fileState !== "ready") status("Review the current draft.");
+  fileState = "ready";
   setDraft(draftField.value, false);
 });
 byId("sample").addEventListener("click", () => {
   readingFile++;
+  fileState = "ready";
   setDraft(example);
   status("Example loaded for review.");
 });
@@ -331,10 +343,11 @@ byId("export").addEventListener("click", () => {
 });
 byId("import").addEventListener("submit", async event => {
   event.preventDefault();
-  if (busy || !workspace || !validDraft) return;
+  if (busy || fileState !== "ready" || !workspace || !validDraft) return;
   readingFile++;
   busy = true;
   controls();
+  byId("batch-result").hidden = true;
   status("Importing batch…");
   let receipt;
   try {

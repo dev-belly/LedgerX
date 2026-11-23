@@ -97,6 +97,31 @@ def test_import_retry_and_journal_detail(tmp_path):
             return call(path + "/execute/sync", {"script": script, "args": []})
 
         wait_until(lambda: run("return !document.querySelector('#export').disabled"))
+        run("document.querySelector('#sample').click()")
+        assert run("return !document.querySelector('#submit').disabled")
+        run("""
+            const file = new File(["ignored"], "pending.jsonl");
+            const transfer = new DataTransfer();
+            transfer.items.add(file);
+            const input = document.querySelector("#feed");
+            input.files = transfer.files;
+            const read = File.prototype.arrayBuffer;
+            File.prototype.arrayBuffer = () => new Promise((_, reject) => {
+                window.rejectFeed = reject;
+            });
+            try {
+                input.dispatchEvent(new Event("change"));
+            } finally {
+                File.prototype.arrayBuffer = read;
+            }
+        """)
+        assert run("return document.querySelector('#submit').disabled")
+        run('window.rejectFeed(new Error("Read failed"))')
+        message_script = "return document.querySelector('#message').textContent"
+        wait_until(lambda: run(message_script).startswith("Read failed"))
+        assert run("return document.querySelector('#submit').disabled")
+        assert run("return document.querySelector('#draft').value.includes('fund-001')")
+        assert run("return document.querySelector('#event-count').textContent") == "0"
         run("document.querySelector('#sample').click(); document.querySelector('#submit').click()")
         wait_until(lambda: run("return document.querySelector('#event-count').textContent === '3'"))
         assert run("return document.querySelector('#book').textContent") == "$10,038.60"
