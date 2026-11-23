@@ -19,10 +19,10 @@ from ledgerx.core import (
 
 
 def load_events(path: str | Path) -> tuple[list[Event], str]:
-    """Read one validated raw event per line, preserving the supplied order."""
+    """Read UTF-8 events with an optional BOM and hash the original bytes."""
     raw = Path(path).read_bytes()
     try:
-        text = raw.decode("utf-8")
+        text = raw.decode("utf-8-sig")
     except UnicodeDecodeError as error:
         raise LedgerError("Event feed must be UTF-8") from error
     lines = text.splitlines()

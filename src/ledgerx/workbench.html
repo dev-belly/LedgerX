@@ -165,10 +165,11 @@ function status(message, error = false) {
   byId("message").dataset.error = String(error);
 }
 function inspectDraft(text) {
-  if (!text) return { ready: false, message: "Choose a feed, paste JSONL, or load the example." };
+  const content = text.replace(/^\ufeff/, "");
+  if (!content) return { ready: false, message: "Choose a feed, paste JSONL, or load the example." };
   const size = new TextEncoder().encode(text).byteLength;
   if (size > MAX_BYTES) return { ready: false, message: "Use a feed of 1 MiB or less." };
-  const lines = text.split(/\r\n|[\n\r\v\f\x1c-\x1e\u0085\u2028\u2029]/);
+  const lines = content.split(/\r\n|[\n\r\v\f\x1c-\x1e\u0085\u2028\u2029]/);
   if (lines.at(-1) === "") lines.pop();
   for (const [index, line] of lines.entries()) {
     try {
