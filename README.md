@@ -206,9 +206,15 @@ and snapshot replacement failure with temporary-file cleanup.
 ## Local import and reconciliation page
 
 Run `ledgerx web demo-ledger.jsonl` from a new directory or pass an existing journal.
-Open the printed loopback URL and upload the repository's
-[`examples/ingestion_events.jsonl`](examples/ingestion_events.jsonl). Import it twice.
-The second import reuses all four rows and leaves balances and the journal head
-unchanged. The page shows exact balances, the head, and up to 100 recent entries.
+Open the printed loopback URL. Use **Load example**, upload a UTF-8 JSONL file,
+or paste the event text. The batch receipt reports appended and reused rows
+and the input SHA-256. Import the example twice to see three new journal
+events on the first import and four reused inputs on the second.
+
+Select a journal event to inspect its debit and credit postings and record
+hash. The journal filter scans the 100 most recent entries. **Download snapshot**
+exports those entries and the current balances as JSON. Book equity uses
+historical cost. Expand the checkpoint panel for the full journal head and
+position cost bases.
 Keep one writer per journal: avoid running another workbench or the ingest CLI
 against that file while this process is serving it.
