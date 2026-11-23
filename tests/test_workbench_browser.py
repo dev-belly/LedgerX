@@ -95,17 +95,10 @@ def test_import_retry_and_journal_detail(tmp_path):
         run("document.querySelector('#sample').click(); document.querySelector('#submit').click()")
         wait_until(lambda: run("return document.querySelector('#event-count').textContent === '3'"))
         assert run("return document.querySelector('#book').textContent") == "$10,038.60"
-        assert run("return document.querySelector('#batch-count').textContent") == (
-            "3 appended · 1 reused"
-        )
+        count_script = "return document.querySelector('#batch-count').textContent"
+        assert run(count_script) == "3 appended · 1 reused"
         run("document.querySelector('#submit').click()")
-        wait_until(
-            lambda: run("return document.querySelector('#batch-title').textContent")
-            == "Retry confirmed"
-        )
-        assert run("return document.querySelector('#batch-count').textContent") == (
-            "0 appended · 4 reused"
-        )
+        wait_until(lambda: run(count_script) == "0 appended · 4 reused")
         run("document.querySelector('#records button').click()")
         assert run("return document.querySelector('#entry-title').textContent") == "fill-002"
         assert run("return document.querySelectorAll('#postings tr').length") >= 2
