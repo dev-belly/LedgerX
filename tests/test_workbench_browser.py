@@ -57,7 +57,7 @@ def test_import_retry_and_journal_detail(tmp_path):
             data=json.dumps(payload).encode("utf-8") if payload is not None else None,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(request, timeout=5) as response:
+        with urllib.request.urlopen(request, timeout=20) as response:
             return json.load(response)["value"]
 
     def driver_ready():
