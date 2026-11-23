@@ -1,111 +1,365 @@
 <!doctype html>
 <html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Import and reconcile</title>
+<title>LedgerX · Import & reconciliation</title>
 <style>
-:root {font: 16px/1.5 system-ui; color: #17312b; background: #f2f5f1}
-* {box-sizing: border-box}
-body {margin: 0}
-header {background: #153b31; color: white; padding: 1rem max(1rem, calc((100vw - 960px)/2))}
-main {max-width: 992px; margin: auto; padding: 1.5rem 1rem}
-h1 {margin: 0 0 1rem; line-height: 1.15}
-h2 {font-size: 1.1rem}
-section {padding: 1rem; margin: 1rem 0; background: white; border: 1px solid #c8d7ce; border-radius: .75rem}
-.controls {display: flex; flex-wrap: wrap; gap: .75rem; align-items: end}
-label {display: grid; gap: .25rem; min-width: 0}
-button,input,select,textarea {font: inherit; border: 1px solid #73877f; border-radius: .4rem; padding: .45rem .6rem; max-width: 100%}
-button {background: #18583f; color: white; cursor: pointer}
-button:disabled {opacity: .6; cursor: default}
-:focus-visible {outline: 3px solid #ac6c08; outline-offset: 2px}
-output {display: block; min-height: 1.5em; margin: 1rem 0}
-output[data-error="true"] {color: #952d17}
-li,code,dd {overflow-wrap: anywhere}
-dl {display: grid; grid-template-columns: minmax(5rem, 1fr) 2fr; gap: .25rem .75rem}
-dd {margin: 0; font-variant-numeric: tabular-nums}
-[hidden] {display:none!important}
+:root{color-scheme:light;--ink:#152526;--muted:#526469;--line:#dbe6e3;--panel:#fff;--green:#126251;--lime:#daefb8;font:15px/1.5 system-ui,sans-serif;background:#f1f6f4;color:var(--ink)}
+*{box-sizing:border-box}
+body{margin:0}
+[hidden]{display:none!important}
+.shell{max-width:1250px;margin:auto;padding-inline:clamp(16px,4vw,44px)}
+a{color:var(--green);text-underline-offset:.2em}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:default;opacity:.5}
+:focus-visible{outline:3px solid #137d69;outline-offset:3px}
+.top{background:#fbfdfc;border-bottom:1px solid var(--line)}
+.top nav{min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;padding-block:9px}
+.brand{display:flex;align-items:center;gap:10px;font-size:1.15rem;font-weight:750;letter-spacing:-.035em;color:var(--ink);text-decoration:none}
+.mark{display:grid;place-items:center;width:31px;height:31px;border-radius:10px;background:#174c40;color:#e5f3c7;font-size:.9rem}
+.top a:last-child{font-size:.85rem}
+main{padding-block:clamp(16px,3vw,32px) 44px}
+.hero{background:radial-gradient(ellipse at 96% 110%,#297964,transparent 56%),linear-gradient(117deg,#112924,#173d33);color:white;padding:clamp(20px,4vw,46px);border-radius:26px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:center;box-shadow:0 16px 35px #17382919}
+h1,h2,h3,p{margin:0}
+.hero h1{font-size:clamp(2rem,5vw,3.55rem);line-height:1.04;letter-spacing:-.065em;margin:7px 0 12px}
+.hero p{max-width:36ch;color:#d1e6df}
+.eyebrow{font-size:.78rem;font-weight:700;color:#d2efbb;letter-spacing:.07em;text-transform:uppercase}
+.book{border:1px solid #ffffff26;background:#ffffff10;border-radius:18px;padding:20px;min-width:0}
+.book strong{color:var(--lime);font-size:clamp(1.4rem,4vw,2.7rem);letter-spacing:-.055em;display:block;margin:6px 0 10px;overflow-wrap:anywhere}
+.book-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;color:#daf1e9;font-size:.8rem}
+.book-track{display:flex;height:7px;border-radius:999px;overflow:hidden;background:#ffffff20;margin:10px 0}
+.book-track span{width:0;background:#daefb8}
+.book-track span+span{background:#6bcfb1}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.stat,.panel{background:var(--panel);border:1px solid var(--line);border-radius:17px;box-shadow:0 6px 24px #17352b08}
+.stat{padding:15px}
+.stat span,.muted,.empty{color:var(--muted);font-size:.86rem}
+.stat strong{display:block;font-size:clamp(1rem,2vw,1.4rem);margin-top:5px;overflow-wrap:anywhere}
+.workspace{display:grid;grid-template-columns:minmax(0, .85fr) minmax(0, 1.35fr);gap:16px;align-items:start}
+.panel{padding:clamp(15px,2.5vw,24px);min-width:0}
+.panel-header,.actions,.result-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+h2{font-size:1.25rem;letter-spacing:-.035em}
+h3{font-size:1rem}
+.panel-header{margin-bottom:14px}
+.field{display:grid;gap:5px;font-size:.86rem;font-weight:650}
+textarea,input[type="search"],input[type="file"]{width:100%;min-width:0;border:1px solid #cee0da;border-radius:9px;background:#f7fbf9;padding:9px 11px}
+textarea{font:.81rem/1.55 ui-monospace,Consolas,monospace;resize:vertical;min-height:120px;margin:8px 0}
+input[type="file"]{font-size:.78rem}
+input::file-selector-button{border:0;border-radius:6px;background:#e3f0eb;padding:5px 8px;margin-right:7px;color:#194c40;cursor:pointer}
+button,.button{border:1px solid #cdded8;border-radius:9px;background:#f1f8f5;padding:8px 11px;min-height:38px;color:#194c40;font-size:.85rem;font-weight:700}
+button:not(:disabled):hover{background:#dceddf}
+.primary{background:#0f614e;border-color:#0f614e;color:white}
+.primary:not(:disabled):hover{background:#104e41}
+.actions{margin-top:12px;justify-content:flex-start}
+.status{display:block;min-height:24px;margin:13px 0 3px;color:#306259;overflow-wrap:anywhere}
+.status[data-error="true"]{color:#9f2d28}
+.result{margin-top:12px;background:#eff7f2;border:1px solid #d7e9df;border-radius:12px;padding:12px}
+.result-top strong{font-size:.94rem}
+.digest{margin-top:9px;overflow-wrap:anywhere;font-size:.76rem}
+.digest code,.mono{font:inherit;font-family:ui-monospace,Consolas,monospace}
+.table-wrap{overflow:auto;margin-top:12px}
+table{width:100%;border-collapse:collapse;font-size:.83rem;text-align:left}
+td,th{padding:9px 7px;border-bottom:1px solid #e7eeeb;overflow-wrap:anywhere;text-align:left}
+th{color:#465b55;font-size:.76rem}
+tr[data-current="true"]{background:#e8f5ee}
+.record{border:0;background:transparent;padding:3px 5px;min-height:28px;text-align:left;overflow-wrap:anywhere}
+.detail{margin-top:15px;background:#f8fbfa;border:1px solid #dfebe5;border-radius:13px;padding:14px}
+.detail h3{overflow-wrap:anywhere;margin-bottom:4px}
+.ledger-foot{margin-top:16px}
+.ledger-foot summary{cursor:pointer;font-weight:650}
+.recon{margin-top:8px}
+.empty{margin-top:10px}
+.money{font-variant-numeric:tabular-nums}
+#entries{scroll-margin-block:16px}
+@media(max-width:840px){.workspace{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:580px){.hero{grid-template-columns:minmax(0,1fr);gap:14px;border-radius:18px}.book{padding:14px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.stat{padding:12px}td,th{padding:8px 5px}}
 </style>
-<header>LedgerX · Local workspace</header>
-<main>
-<h1>Import and reconcile</h1>
-
-<section>
-<form id="import" class="controls">
-  <label>UTF-8 JSONL event feed <input type="file" id="feed" accept=".jsonl,.ndjson" required></label>
-  <button id="submit" disabled>Import batch</button>
-  <button id="reload" type="button">Refresh</button>
-</form>
+</head>
+<body>
+<header class="top"><nav class="shell" aria-label="LedgerX">
+<a class="brand" href="https://github.com/dev-belly/LedgerX"><span class="mark" aria-hidden="true">L</span>LedgerX</a>
+<a href="https://github.com/dev-belly/LedgerX#local-import-and-reconciliation-page">Workspace guide</a>
+</nav></header>
+<main class="shell">
+<section class="hero" aria-labelledby="workspace-title">
+<div><div class="eyebrow">Local journal · USD</div><h1 id="workspace-title">Import &amp;<br>reconciliation</h1><p>Import research events and inspect the balanced journal entries behind each fill.</p></div>
+<div class="book">
+<span>Book equity</span><strong id="book" class="money">—</strong>
+<div id="mix" class="book-track" aria-hidden="true"><span id="cash-bar"></span><span id="inventory-bar"></span></div>
+<div class="book-meta"><span id="mix-cash">Cash —</span><span id="mix-inventory">Inventory cost —</span></div>
+</div>
 </section>
-<output id="message" role="status"></output>
-
-<section><h2>Ledger balances</h2><dl id="balances"></dl><p>Journal head <code id="head"></code></p></section>
-<section><h2>Latest journal entries</h2><ol id="records"></ol></section>
+<div class="stats" aria-label="Reconciliation summary">
+<div class="stat"><span>Net contributions</span><strong id="contributions" class="money">—</strong></div>
+<div class="stat"><span>Realized P&amp;L</span><strong id="pnl" class="money">—</strong></div>
+<div class="stat"><span>Open positions</span><strong id="positions">—</strong></div>
+<div class="stat"><span>Journal events</span><strong id="event-count">—</strong></div>
+</div>
+<div class="workspace">
+<section class="panel" aria-labelledby="import-heading">
+<div class="panel-header"><h2 id="import-heading">Batch intake</h2><button id="sample" type="button">Load example</button></div>
+<form id="import">
+<label class="field" for="feed">Choose a UTF-8 JSONL feed</label>
+<input type="file" id="feed" accept=".jsonl,.ndjson">
+<label class="field" for="draft">Event text</label>
+<textarea id="draft" spellcheck="false" autocomplete="off" aria-describedby="preview" placeholder="Paste one event per line"></textarea>
+<p id="preview" class="muted"></p>
+<div class="actions"><button id="submit" type="submit" class="primary" disabled>Import batch</button><button id="reload" type="button">Refresh journal</button></div>
+</form>
+<output id="message" class="status" role="status">Reading local journal…</output>
+<div id="batch-result" class="result" hidden><div class="result-top"><strong id="batch-title"></strong><span id="batch-count" class="muted"></span></div>
+<p class="digest">Feed SHA-256 <code id="feed-digest"></code></p></div>
+</section>
+<section class="panel" aria-labelledby="journal-heading">
+<div class="panel-header"><h2 id="journal-heading">Journal</h2><button id="export" type="button" disabled>Download snapshot</button></div>
+<label for="search" class="field">Filter recent entries</label><input type="search" id="search" placeholder="Event ID, symbol or action">
+<p id="empty" class="empty"></p>
+<div id="records-table" class="table-wrap" hidden><table aria-label="Recent journal entries">
+<thead><tr><th scope="col">Event</th><th scope="col">Action</th><th scope="col">UTC date</th></tr></thead>
+<tbody id="records"></tbody>
+</table></div>
+<div id="entries" class="detail" hidden><h3 id="entry-title"></h3><p id="entry-time" class="muted"></p>
+<table class="recon" aria-label="Double-entry postings"><thead><tr><th scope="col">Account</th><th scope="col">Posting (USD)</th></tr></thead><tbody id="postings"></tbody></table>
+<p class="digest">Record hash <code id="record-hash"></code></p></div>
+<details class="ledger-foot"><summary>Journal checkpoint and positions</summary>
+<p class="digest">SHA-256 head <code id="head">—</code></p>
+<div id="positions-body" class="table-wrap" hidden><table aria-label="Open positions"><thead><tr><th scope="col">Symbol</th><th scope="col">Quantity</th><th scope="col">Cost basis</th></tr></thead><tbody id="position-rows"></tbody></table></div>
+</details>
+</section>
+</div>
 </main>
 <script>
+const example = "{\"kind\":\"cash\",\"event_id\":\"fund-001\",\"occurred_at\":\"2024-01-02T00:00:00Z\",\"direction\":\"deposit\",\"amount\":\"10000\"}\n{\"kind\":\"fill\",\"event_id\":\"fill-001\",\"occurred_at\":\"2024-01-03T00:00:00Z\",\"symbol\":\"ACME\",\"side\":\"buy\",\"quantity\":\"10\",\"price\":\"100\",\"fee\":\"1\"}\n{\"kind\":\"fill\",\"event_id\":\"fill-002\",\"occurred_at\":\"2024-01-04T00:00:00Z\",\"symbol\":\"ACME\",\"side\":\"sell\",\"quantity\":\"4\",\"price\":\"110\",\"fee\":\"1\"}\n{\"kind\":\"fill\",\"event_id\":\"fill-001\",\"occurred_at\":\"2024-01-03T00:00:00Z\",\"symbol\":\"ACME\",\"side\":\"buy\",\"quantity\":\"10.0\",\"price\":\"100.00\",\"fee\":\"1.00\"}\n";
+const MAX_BYTES = 1048576;
 const byId = id => document.getElementById(id);
-function node(tag, value) {
+const draftField = byId("draft");
+const feedField = byId("feed");
+const search = byId("search");
+let draft = "";
+let validDraft = false;
+let readingFile = 0;
+let busy = false;
+let workspace;
+let selected;
+function node(tag, text) {
   const item = document.createElement(tag);
-  item.textContent = value;
+  if (text !== undefined) item.textContent = text;
   return item;
+}
+function formatUSD(value) {
+  const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(value);
+  if (!match) return value;
+  const [, sign, whole, cents = ""] = match;
+  return sign + "$" + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + cents.padEnd(2, "0");
+}
+function quantum(value) {
+  const [whole, fraction = ""] = value.split(".");
+  return BigInt(whole) * 100000000n + BigInt(fraction.padEnd(8, "0"));
 }
 function status(message, error = false) {
   byId("message").textContent = message;
-  byId("message").dataset.error = error;
+  byId("message").dataset.error = String(error);
+}
+function inspectDraft(text) {
+  if (!text) return { ready: false, message: "Choose a feed, paste JSONL, or load the example." };
+  const size = new TextEncoder().encode(text).byteLength;
+  if (size > MAX_BYTES) return { ready: false, message: "Use a feed of 1 MiB or less." };
+  const lines = text.split(/\r\n|[\n\r\v\f\x1c-\x1e\u0085\u2028\u2029]/);
+  if (lines.at(-1) === "") lines.pop();
+  for (const [index, line] of lines.entries()) {
+    try {
+      const event = JSON.parse(line);
+      if (!event || Array.isArray(event) || typeof event !== "object"
+          || Object.values(event).some(value => typeof value !== "string")) {
+        throw new Error("Expected a JSON object with text fields.");
+      }
+    } catch {
+      return { ready: false, message: "Check JSONL row " + (index + 1) + "." };
+    }
+  }
+  return { ready: true, message: lines.length + " input rows · " + size.toLocaleString() + " bytes" };
+}
+function setDraft(value, updateField = true) {
+  draft = value;
+  if (updateField) draftField.value = value;
+  const preview = inspectDraft(value);
+  validDraft = preview.ready;
+  byId("preview").textContent = preview.message;
+  controls();
+}
+function controls() {
+  byId("submit").disabled = busy || !workspace || !validDraft;
+  byId("reload").disabled = busy;
+  feedField.disabled = busy;
+  draftField.disabled = busy;
+  byId("sample").disabled = busy;
+  byId("export").disabled = busy || !workspace;
 }
 async function api(path, body) {
-  const response = await fetch("/api/" + path, body === undefined ? {} : {
-    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)
+  const response = await fetch("/api/" + path, body === undefined ? { cache: "no-store" } : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
   });
   const value = await response.json();
-  if (!response.ok) throw new Error(value.error);
+  if (!response.ok) throw new Error(value.error || "The local journal returned HTTP " + response.status);
   return value;
 }
-
-let head;
-let busy = false;
-const balances = {cash: "Cash", inventory_cost: "Inventory cost", net_contributions: "Net contributions",
-  realized_pnl: "Realized P&L", book_equity: "Book equity", events: "Events"};
-function controls() { byId("submit").disabled = busy || !head; }
-async function refresh() {
-  const {ledger, records} = await api("state");
-  head = ledger.head_hash;
-  byId("head").textContent = head;
-  byId("balances").replaceChildren(...Object.entries(balances).flatMap(([key, label]) =>
-    [node("dt", label), node("dd", ledger[key])]));
-  byId("records").replaceChildren(...records.map(record => {
-    const entry = node("li", "#" + record.sequence + " · " + record.event.event_id);
-    const lines = node("ul", "");
-    lines.append(...record.entries.map(row => node("li", row.account + " · " + row.amount)));
-    entry.append(lines);
-    return entry;
-  }));
+function tableRow(values) {
+  const row = node("tr");
+  row.append(...values.map(value => node("td", value)));
+  return row;
 }
-byId("reload").addEventListener("click", async () => {
+function renderBalances(ledger) {
+  byId("book").textContent = formatUSD(ledger.book_equity);
+  byId("mix-cash").textContent = "Cash " + formatUSD(ledger.cash);
+  byId("mix-inventory").textContent = "Inventory cost " + formatUSD(ledger.inventory_cost);
+  byId("contributions").textContent = formatUSD(ledger.net_contributions);
+  byId("pnl").textContent = formatUSD(ledger.realized_pnl);
+  byId("event-count").textContent = String(ledger.events);
+  byId("head").textContent = ledger.head_hash;
+  const cash = quantum(ledger.cash);
+  const inventory = quantum(ledger.inventory_cost);
+  const total = cash + inventory;
+  const share = total > 0n ? Number(cash * 10000n / total) / 100 : 0;
+  byId("cash-bar").style.width = share + "%";
+  byId("inventory-bar").style.width = (total > 0n ? 100 - share : 0) + "%";
+  const positions = Object.entries(ledger.positions);
+  byId("positions").textContent = String(positions.length);
+  byId("positions-body").hidden = !positions.length;
+  byId("position-rows").replaceChildren(...positions.map(([symbol, position]) =>
+    tableRow([symbol, position.quantity, formatUSD(position.cost_basis)])
+  ));
+}
+function eventAction(event) {
+  return event.kind === "cash" ? event.direction : event.side + " " + event.symbol;
+}
+function showEntry(record, scroll = false) {
+  byId("entries").hidden = !record;
+  if (!record) return;
+  byId("entry-title").textContent = record.event.event_id;
+  byId("entry-time").textContent = record.event.occurred_at + " · " + eventAction(record.event);
+  byId("record-hash").textContent = record.hash;
+  byId("postings").replaceChildren(...record.entries.map(entry => tableRow([entry.account, formatUSD(entry.amount)])));
+  if (scroll) byId("entries").scrollIntoView({ block: "nearest" });
+}
+function renderEntries() {
+  const query = search.value.trim().toLowerCase();
+  const rows = workspace?.records ?? [];
+  const visible = rows.filter(({ event }) =>
+    (event.event_id + " " + eventAction(event)).toLowerCase().includes(query)
+  );
+  const active = visible.find(row => row.hash === selected);
+  byId("records-table").hidden = !visible.length;
+  byId("empty").textContent = rows.length
+    ? visible.length + " of " + rows.length + " recent entries"
+    : "No events in this journal yet.";
+  byId("records").replaceChildren(...visible.map(record => {
+    const row = node("tr");
+    const button = node("button", record.event.event_id);
+    button.type = "button";
+    button.className = "record";
+    button.dataset.hash = record.hash;
+    button.setAttribute("aria-controls", "entries");
+    button.setAttribute("aria-expanded", String(record === active));
+    row.dataset.current = String(record === active);
+    const cell = node("td");
+    cell.append(button);
+    row.append(cell, node("td", eventAction(record.event)), node("td", record.event.occurred_at.slice(0, 10)));
+    return row;
+  }));
+  showEntry(active);
+}
+async function refresh() {
+  workspace = await api("state");
+  renderBalances(workspace.ledger);
+  renderEntries();
+}
+async function reload() {
   if (busy) return;
   busy = true;
   controls();
   try { await refresh(); status("Journal refreshed."); }
   catch (error) { status(error.message, true); }
   finally { busy = false; controls(); }
+}
+feedField.addEventListener("change", async () => {
+  const file = feedField.files[0];
+  if (!file) return;
+  const revision = ++readingFile;
+  feedField.value = "";
+  try {
+    if (file.size > MAX_BYTES) throw new Error("Use a feed of 1 MiB or less.");
+    const value = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await file.arrayBuffer());
+    if (revision !== readingFile) return;
+    setDraft(value);
+    status(file.name + " loaded for review.");
+  } catch (error) {
+    if (revision === readingFile) status(error.message, true);
+  }
+});
+draftField.addEventListener("input", () => {
+  readingFile++;
+  setDraft(draftField.value, false);
+});
+byId("sample").addEventListener("click", () => {
+  readingFile++;
+  setDraft(example);
+  status("Example loaded for review.");
+});
+byId("reload").addEventListener("click", reload);
+search.addEventListener("input", renderEntries);
+byId("records").addEventListener("click", event => {
+  const button = event.target.closest("button[data-hash]");
+  if (!button) return;
+  selected = selected === button.dataset.hash ? undefined : button.dataset.hash;
+  for (const item of byId("records").querySelectorAll("button[data-hash]")) {
+    const active = item.dataset.hash === selected;
+    item.setAttribute("aria-expanded", String(active));
+    item.closest("tr").dataset.current = String(active);
+  }
+  showEntry(workspace.records.find(record => record.hash === selected), true);
+});
+byId("export").addEventListener("click", () => {
+  if (!workspace) return;
+  const url = URL.createObjectURL(new Blob([JSON.stringify(workspace, null, 2) + "\n"], { type: "application/json" }));
+  const link = node("a");
+  link.href = url;
+  link.download = "ledgerx-" + workspace.ledger.head_hash.slice(0, 12) + ".json";
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 byId("import").addEventListener("submit", async event => {
   event.preventDefault();
-  const file = byId("feed").files[0];
-  if (!file || !head || busy) return;
-  if (file.size > 1048576) { status("Event feed exceeds 1 MiB.", true); return; }
+  if (busy || !workspace || !validDraft) return;
+  readingFile++;
   busy = true;
   controls();
+  status("Importing batch…");
+  let receipt;
   try {
-    const feed = new TextDecoder("utf-8", {fatal: true, ignoreBOM: true}).decode(await file.arrayBuffer());
-    const result = await api("change", {feed, expected_head: head});
+    receipt = await api("change", { feed: draft, expected_head: workspace.ledger.head_hash });
+    const title = receipt.appended_events > 0 ? "Batch recorded" : "Retry confirmed";
+    byId("batch-title").textContent = title;
+    byId("batch-count").textContent = receipt.appended_events + " appended · " + receipt.reused_events + " reused";
+    byId("feed-digest").textContent = receipt.input_sha256;
+    byId("batch-result").hidden = false;
     await refresh();
-    status("Appended " + result.appended_events + " · Reused " + result.reused_events);
+    status(title + ".");
   } catch (error) {
-    status(error.message, true);
-    try { await refresh(); } catch { /* Keep the import error visible. */ }
+    if (receipt) {
+      workspace = undefined;
+      status("Batch accepted. Refresh the journal to inspect the updated entries.", true);
+    } else if (error.message.includes("checkpoint")) {
+      try { await refresh(); status("The journal changed. Review the refreshed checkpoint and submit again.", true); }
+      catch { workspace = undefined; status(error.message, true); }
+    } else {
+      status(error.message, true);
+    }
   } finally { busy = false; controls(); }
 });
-refresh().catch(error => status(error.message, true)).finally(controls);
-
+setDraft("");
+void reload();
 </script>
+</body>
 </html>
