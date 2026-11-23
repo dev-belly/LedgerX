@@ -37,10 +37,12 @@ def test_import_retry_and_journal_detail(tmp_path):
         sock.bind(("127.0.0.1", 0))
         driver_port = sock.getsockname()[1]
     base = f"http://127.0.0.1:{driver_port}"
+    journal = tmp_path / "journal.jsonl"
+    command = [sys.executable, "-m", "ledgerx.cli", "web", str(journal), "--port", "0"]
     server = subprocess.Popen(
-        [sys.executable, "-m", "ledgerx", "web", str(tmp_path / "journal.jsonl"), "--port", "0"],
+        command,
         stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
         text=True,
     )
     driver = subprocess.Popen(
@@ -67,6 +69,9 @@ def test_import_retry_and_journal_detail(tmp_path):
     try:
         assert server.stdout is not None
         address = server.stdout.readline().strip()
+        if not address:
+            assert server.stderr is not None
+            pytest.fail(server.stderr.read())
         assert address.startswith("http://127.0.0.1:")
         wait_until(driver_ready)
         session = call(
