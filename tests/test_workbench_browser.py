@@ -52,13 +52,13 @@ def test_import_retry_and_journal_detail(tmp_path):
         stderr=subprocess.DEVNULL,
     )
 
-    def call(path, payload=None):
+    def call(path, payload=None, *, timeout=20):
         request = urllib.request.Request(
             base + path,
             data=json.dumps(payload).encode("utf-8") if payload is not None else None,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
             return json.load(response)["value"]
 
     def driver_ready():
@@ -90,6 +90,8 @@ def test_import_retry_and_journal_detail(tmp_path):
                     }
                 }
             },
+            # Starting Chrome can take longer than a normal WebDriver request.
+            timeout=60,
         )["sessionId"]
         path = "/session/" + session
         call(path + "/url", {"url": address})
