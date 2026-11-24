@@ -7,14 +7,13 @@
 <style>
 :root {
   color-scheme: light;
-  --ink: #1b2421;
-  --muted: #52635a;
+  --ink: #172335;
+  --muted: #4b5c67;
   --line: #dce5dd;
   --panel: #fff;
   --green: #126251;
-  --lime: #def69e;
   font: 16px/1.56 -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
-  background: #f4f6f2;
+  background: #f4f7f9;
   color: var(--ink);
 }
 *, *::before, *::after { box-sizing: border-box; }
@@ -26,13 +25,13 @@ button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: .5; }
 :focus-visible { outline: 2px solid #137564; outline-offset: 4px; }
-.top { border-bottom: 1px solid #effcef25; background: #101614; color: #f7fbf6; }
+.top { border-bottom: 1px solid #dae4ec; background: #fcfdff; color: #182c39; }
 .top nav { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .55rem; min-height: 4.25rem; padding-block: .42rem; }
-.top :focus-visible { outline-color: var(--lime); }
-.brand { display: flex; align-items: center; gap: .63rem; color: white; font-size: 1.14rem; font-weight: 750; letter-spacing: -.032em; text-decoration: none; }
-.mark { display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: .44rem; background: var(--lime); color: #182c1d; font: 750 .91rem/1 ui-monospace, monospace; }
-.top a:last-child:not(.brand) { display: inline-flex; align-items: center; min-height: 2.64rem; padding-inline: .62rem; border: 1px solid #dce8dc3a; border-radius: .49rem; color: #f3f8ef; font-size: .875rem; text-decoration: none; }
-.top a:hover { color: var(--lime); }
+.top :focus-visible { outline-color: var(--green); }
+.brand { display: flex; align-items: center; gap: .63rem; color: #203848; font-size: 1.14rem; font-weight: 750; letter-spacing: -.032em; text-decoration: none; }
+.mark { display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: .44rem; background: #e3edf5; color: #204f6c; font: 750 .91rem/1 ui-monospace, monospace; }
+.top a:last-child:not(.brand) { display: inline-flex; align-items: center; min-height: 2.64rem; padding-inline: .62rem; border: 1px solid #d4e0e8; border-radius: 999px; color: #244d64; font-size: .875rem; text-decoration: none; }
+.top a:hover { color: #2554ae; }
 main { padding-block: clamp(1rem, 3vw, 2.2rem) 2.7rem; }
 .hero {
   position: relative;
@@ -43,32 +42,32 @@ main { padding-block: clamp(1rem, 3vw, 2.2rem) 2.7rem; }
   gap: .9rem clamp(1rem, 4.5vw, 3.8rem);
   overflow: hidden;
   padding: clamp(1.15rem, 3.65vw, 2.95rem);
-  border: 1px solid #26392f;
+  border: 1px solid #dae5ec;
   border-radius: 1.32rem;
-  background: radial-gradient(ellipse at 100% 110%, #25644d, transparent 63%), #12201a;
-  color: #f7fbf6;
+  background: radial-gradient(ellipse at 100% 110%, #dcecf2, transparent 65%), #fff;
+  color: #182d3f;
 }
 .hero::before {
   position: absolute;
   z-index: -1;
   inset: 0;
   background:
-    linear-gradient(116deg, transparent 63%, #dbefe126 63.2%, transparent 63.4%),
-    linear-gradient(116deg, transparent 79%, #dbefe133 79.1%, transparent 79.3%),
-    repeating-linear-gradient(0deg, #ebfff013 0 1px, transparent 1px 30px);
+    linear-gradient(116deg, transparent 63%, #5c7f9a19 63.2%, transparent 63.4%),
+    linear-gradient(116deg, transparent 79%, #5c7f9a25 79.1%, transparent 79.3%),
+    repeating-linear-gradient(0deg, #829db215 0 1px, transparent 1px 30px);
   mask-image: linear-gradient(90deg, transparent 30%, #000 90%);
   content: "";
 }
-.hero h1 { margin: .31rem 0 .64rem; font-size: clamp(2.26rem, 5.2vw, 4.65rem); font-weight: 755; line-height: 1.02; letter-spacing: -.063em; overflow-wrap: anywhere; }
-.hero p { max-width: 43ch; color: #e0ece5; }
-.eyebrow { color: var(--lime); font-size: .875rem; font-weight: 710; }
-.book { min-width: 0; padding: .99rem clamp(.93rem, 2.2vw, 1.46rem); border: 1px solid #e1f4e343; border-radius: .72rem; background: #121f19bc; }
-.book > span { color: #d9ebdd; font-size: .875rem; font-weight: 670; }
-.book strong { display: block; margin: .24rem 0 .62rem; color: #e9f9cd; font-size: clamp(1.6rem, 3.85vw, 3.55rem); line-height: 1.12; letter-spacing: -.05em; overflow-wrap: anywhere; }
-.book-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .24rem .57rem; color: #e1eee7; font-size: .875rem; }
-.book-track { display: flex; height: .49rem; overflow: hidden; margin: .7rem 0 .54rem; border-radius: .22rem; background: #ffffff22; }
-.book-track span { width: 0; background: #def69e; }
-.book-track span + span { background: #62cfa5; }
+.hero h1 { margin: .31rem 0 .64rem; font-size: clamp(2.28rem, 5.65vw, 5rem); font-weight: 755; line-height: 1.02; letter-spacing: -.063em; overflow-wrap: anywhere; }
+.hero p { max-width: 43ch; color: #465e70; }
+.eyebrow { color: #315c76; font-size: .875rem; font-weight: 710; }
+.book { min-width: 0; padding: .99rem clamp(.93rem, 2.2vw, 1.46rem); border: 1px solid #d4e4ef; border-radius: 1.05rem; background: #fff9; }
+.book > span { color: #4b6275; font-size: .875rem; font-weight: 670; }
+.book strong { display: block; margin: .24rem 0 .62rem; color: #255779; font-size: clamp(1.6rem, 3.85vw, 3.55rem); line-height: 1.12; letter-spacing: -.05em; overflow-wrap: anywhere; }
+.book-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .24rem .57rem; color: #526778; font-size: .875rem; }
+.book-track { display: flex; height: .49rem; overflow: hidden; margin: .7rem 0 .54rem; border-radius: .22rem; background: #deebf4; }
+.book-track span { width: 0; background: #4c83ad; }
+.book-track span + span { background: #2a796e; }
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: .9rem 0 1rem; border: 1px solid var(--line); border-radius: .85rem; background: var(--panel); }
 .stat { min-width: 0; padding: .82rem clamp(.69rem, 1.9vw, 1.35rem); }
 .stat + .stat { border-left: 1px solid var(--line); }
@@ -130,7 +129,7 @@ tr[data-current="true"] td:first-child { box-shadow: inset 3px 0 var(--green); }
 </nav></header>
 <main class="shell">
 <section class="hero" aria-labelledby="workspace-title">
-<div><div class="eyebrow">Local journal · USD</div><h1 id="workspace-title">Import &amp;<br>reconciliation</h1><p>Import research events and inspect the balanced journal entries behind each fill.</p></div>
+<div><div class="eyebrow">Local journal · USD</div><h1 id="workspace-title">Import &amp;<br> reconciliation</h1><p>Import research events and inspect the balanced journal entries behind each fill.</p></div>
 <div class="book">
 <span>Book equity</span><strong id="book" class="money">—</strong>
 <div id="mix" class="book-track" aria-hidden="true"><span id="cash-bar"></span><span id="inventory-bar"></span></div>
